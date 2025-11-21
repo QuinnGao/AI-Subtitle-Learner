@@ -1,0 +1,46 @@
+{
+  "title": "Video Subtitle Processing",
+  "subtitle": "Enter YouTube URL to get and process subtitles",
+  "youtubeUrl": "YouTube URL",
+  "youtubeUrlPlaceholder": "Please enter YouTube video link, e.g.: https://www.youtube.com/watch?v=...",
+  "subtitlePath": "Subtitle File Path",
+  "subtitlePathPlaceholder": "Subtitle file path (optional, will be auto-fetched if YouTube URL is provided)",
+  "submit": "Submit",
+  "processing": "Processing...",
+  "taskStatus": {
+    "pending": "Pending",
+    "running": "Running",
+    "completed": "Completed",
+    "failed": "Failed",
+    "cancelled": "Cancelled"
+  },
+  "progress": "Progress",
+  "message": "Status",
+  "download": "Download Subtitle",
+  "error": "Error",
+  "success": "Success",
+  "invalidUrl": "Please enter a valid YouTube URL",
+  "taskCreated": "Task created",
+  "checkingStatus": "Checking task status...",
+  "downloadSuccess": "Download successful",
+  "downloadError": "Download failed",
+  "videoDownload": {
+    "title": "Video Download",
+    "downloadVideo": "Download Video",
+    "downloadVideoFile": "Download Video File",
+    "downloading": "Downloading...",
+    "processing": "Processing...",
+    "taskCreated": "Video download task created",
+    "completed": "Video download completed",
+    "failed": "Video download failed",
+    "createFailed": "Failed to create video download task",
+    "downloadSuccess": "Video download successful",
+    "downloadError": "Video download failed"
+  },
+  "subtitleContent": "Subtitle Content",
+  "viewSubtitle": "View Subtitle",
+  "loading": "Loading...",
+  "close": "Close",
+  "subtitleTask": "Subtitle Task"
+}
+

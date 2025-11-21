@@ -1,0 +1,18 @@
+# Docker Compose 覆盖文件示例
+# 复制此文件为 docker-compose.override.yml 来自定义配置
+# 或者直接在 .env 文件中设置环境变量
+
+version: '3.8'
+
+services:
+  web:
+    environment:
+      # 如果使用反向代理（如nginx），可以设置为相对路径
+      # - NEXT_PUBLIC_API_BASE_URL=/api/v1
+      
+      # 如果前端和后端在同一主机，使用localhost
+      # - NEXT_PUBLIC_API_BASE_URL=http://localhost:8000/api/v1
+      
+      # 如果前端和后端在不同主机，使用实际IP或域名
+      # - NEXT_PUBLIC_API_BASE_URL=http://your-api-host:8000/api/v1
+

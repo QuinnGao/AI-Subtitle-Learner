@@ -1,0 +1,135 @@
+"""
+字幕处理相关数据模型
+"""
+
+from enum import Enum
+from typing import Optional
+
+from pydantic import BaseModel, Field
+
+from app.core.translate.types import TargetLanguage
+from app.schemas.common import TaskResponse
+
+
+def _get_default_max_word_count_cjk() -> int:
+    """获取 CJK 最大字数的默认值"""
+    try:
+        from app.config import settings
+
+        return settings.max_word_count_cjk
+    except (ImportError, AttributeError):
+        # 如果配置不可用，使用 core/entities.py 中的默认值
+        return 25
+
+
+def _get_default_max_word_count_english() -> int:
+    """获取英文最大字数的默认值"""
+    try:
+        from app.config import settings
+
+        return settings.max_word_count_english
+    except (ImportError, AttributeError):
+        # 如果配置不可用，使用 core/entities.py 中的默认值
+        return 20
+
+
+class TranslatorService(str, Enum):
+    """翻译器服务"""
+
+    OPENAI = "openai"
+    DEEPLX = "deeplx"
+    BING = "bing"
+    GOOGLE = "google"
+
+
+class SubtitleLayout(str, Enum):
+    """字幕布局"""
+
+    TRANSLATE_ON_TOP = "translate_on_top"
+    ORIGINAL_ON_TOP = "original_on_top"
+    ONLY_ORIGINAL = "only_original"
+    ONLY_TRANSLATE = "only_translate"
+
+
+class SubtitleConfig(BaseModel):
+    """字幕处理配置"""
+
+    # 翻译配置
+    base_url: Optional[str] = Field(None, description="LLM API Base URL")
+    api_key: Optional[str] = Field(None, description="LLM API Key")
+    llm_model: Optional[str] = Field(None, description="LLM 模型")
+    deeplx_endpoint: Optional[str] = Field(None, description="DeepLX 端点")
+
+    # 翻译服务
+    translator_service: Optional[TranslatorService] = Field(
+        default=TranslatorService.OPENAI, description="翻译服务"
+    )
+    need_translate: bool = Field(default=False, description="是否需要翻译")
+    need_optimize: bool = Field(default=False, description="是否需要优化")
+    need_reflect: bool = Field(default=False, description="是否需要反思翻译")
+    need_analyze_japanese: bool = Field(
+        default=True, description="是否需要分析日语文本（提取平假名、罗马字、词性）"
+    )
+    thread_num: int = Field(default=10, ge=1, description="并发线程数")
+    batch_size: int = Field(default=10, ge=1, description="批处理大小")
+
+    # 字幕布局和分割
+    subtitle_layout: SubtitleLayout = Field(
+        default=SubtitleLayout.ORIGINAL_ON_TOP, description="字幕布局"
+    )
+    max_word_count_cjk: int = Field(
+        default_factory=_get_default_max_word_count_cjk,
+        ge=1,
+        description="CJK 语言最大字数",
+    )
+    max_word_count_english: int = Field(
+        default_factory=_get_default_max_word_count_english,
+        ge=1,
+        description="英文最大字数",
+    )
+    need_split: bool = Field(default=True, description="是否需要分割")
+    target_language: Optional[TargetLanguage] = Field(
+        default=TargetLanguage.SIMPLIFIED_CHINESE, description="目标语言"
+    )
+    subtitle_style: Optional[str] = Field(None, description="字幕样式")
+    custom_prompt_text: Optional[str] = Field(None, description="自定义提示词")
+
+
+class SubtitleRequest(BaseModel):
+    """字幕处理请求"""
+
+    subtitle_path: str = Field(..., description="字幕文件路径")
+    video_path: Optional[str] = Field(None, description="视频文件路径（可选）")
+    output_path: Optional[str] = Field(None, description="输出文件路径（可选）")
+    config: SubtitleConfig = Field(
+        default_factory=SubtitleConfig, description="字幕处理配置"
+    )
+
+
+class TranscribeTaskInfo(BaseModel):
+    """转录任务信息"""
+
+    task_id: Optional[str] = Field(None, description="转录任务ID")
+    status: Optional[str] = Field(None, description="转录任务状态")
+    progress: Optional[int] = Field(None, description="转录任务进度")
+    message: Optional[str] = Field(None, description="转录任务消息")
+
+
+class VideoTaskInfo(BaseModel):
+    """视频下载任务信息"""
+
+    task_id: Optional[str] = Field(None, description="视频下载任务ID")
+    status: Optional[str] = Field(None, description="视频下载任务状态")
+    progress: Optional[int] = Field(None, description="视频下载任务进度")
+    message: Optional[str] = Field(None, description="视频下载任务消息")
+
+
+class SubtitleResponse(TaskResponse):
+    """字幕处理响应"""
+
+    transcribe_task: Optional[TranscribeTaskInfo] = Field(
+        None, description="关联的转录任务信息"
+    )
+    video_task: Optional[VideoTaskInfo] = Field(
+        None, description="关联的视频下载任务信息"
+    )

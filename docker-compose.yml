@@ -1,0 +1,79 @@
+version: '3.8'
+
+services:
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: video-subtitle-api
+    ports:
+      - "8000:8000"
+    volumes:
+      # 工作目录 - 存储处理中的文件
+      - ./workspace:/app/workspace
+      # 模型目录 - 存储 AI 模型
+      - ./models:/app/models
+      # 日志目录
+      - ./logs:/app/logs
+      # 可选：挂载输入文件目录
+      - ./input:/app/input:ro
+      # 可选：挂载输出文件目录
+      - ./output:/app/output
+    environment:
+      - DEBUG=${DEBUG:-False}
+      - LOG_LEVEL=${LOG_LEVEL:-INFO}
+      - WORK_DIR=/app/workspace
+      - MODEL_DIR=/app/models
+      - LOG_DIR=/app/logs
+      # LLM 配置（可选，支持多种环境变量名称）
+      - LLM_API_BASE=${LLM_API_BASE:-${OPENAI_API_BASE:-}}
+      - LLM_API_KEY=${LLM_API_KEY:-${OPENAI_API_KEY:-}}
+      - LLM_MODEL=${LLM_MODEL:-${OPENAI_MODEL:-}}
+      # 兼容旧的环境变量名称
+      - OPENAI_API_BASE=${OPENAI_API_BASE:-${LLM_API_BASE:-}}
+      - OPENAI_API_KEY=${OPENAI_API_KEY:-${LLM_API_KEY:-}}
+      - OPENAI_MODEL=${OPENAI_MODEL:-${LLM_MODEL:-}}
+      # 翻译服务配置（可选）
+      - DEEPLX_ENDPOINT=${DEEPLX_ENDPOINT:-}
+    env_file:
+      - .env
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    networks:
+      - video-subtitle-network
+
+  web:
+    build:
+      context: ./web
+      dockerfile: Dockerfile
+    container_name: video-subtitle-web
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=production
+      # 浏览器访问时使用localhost，容器内服务端访问使用api服务名
+      # 如果前端和后端在同一主机，浏览器访问应使用 http://localhost:8000/api/v1
+      # 如果使用反向代理，可以设置为相对路径 /api/v1
+      - NEXT_PUBLIC_API_BASE_URL=${NEXT_PUBLIC_API_BASE_URL:-http://localhost:8000/api/v1}
+    depends_on:
+      - api
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    networks:
+      - video-subtitle-network
+
+networks:
+  video-subtitle-network:
+    driver: bridge
+
+

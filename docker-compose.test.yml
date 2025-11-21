@@ -1,0 +1,82 @@
+version: '3.8'
+
+services:
+  test:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: video-subtitle-test
+    volumes:
+      # 挂载代码目录（用于热更新）
+      - .:/app
+      # 工作目录
+      - ./workspace:/app/workspace
+      # 模型目录
+      - ./models:/app/models
+      # 日志目录
+      - ./logs:/app/logs
+      # 测试输出目录
+      - ./test-results:/app/test-results
+    environment:
+      - PYTHONUNBUFFERED=1
+      - PYTHONPATH=/app
+      - DEBUG=True
+      - LOG_LEVEL=DEBUG
+      - WORK_DIR=/app/workspace
+      - MODEL_DIR=/app/models
+      - LOG_DIR=/app/logs
+    command: sh -c "pytest tests/test_subtitle.py -v --tb=short || exit 1"
+    networks:
+      - video-subtitle-network
+
+  test-all:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: video-subtitle-test-all
+    volumes:
+      - .:/app
+      - ./workspace:/app/workspace
+      - ./models:/app/models
+      - ./logs:/app/logs
+      - ./test-results:/app/test-results
+    environment:
+      - PYTHONUNBUFFERED=1
+      - PYTHONPATH=/app
+      - DEBUG=True
+      - LOG_LEVEL=DEBUG
+      - WORK_DIR=/app/workspace
+      - MODEL_DIR=/app/models
+      - LOG_DIR=/app/logs
+    command: sh -c "pytest tests/ -v --tb=short --cov=app --cov-report=html --cov-report=term || exit 1"
+    networks:
+      - video-subtitle-network
+
+  test-coverage:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: video-subtitle-test-coverage
+    volumes:
+      - .:/app
+      - ./workspace:/app/workspace
+      - ./models:/app/models
+      - ./logs:/app/logs
+      - ./test-results:/app/test-results
+      - ./htmlcov:/app/htmlcov
+    environment:
+      - PYTHONUNBUFFERED=1
+      - PYTHONPATH=/app
+      - DEBUG=True
+      - LOG_LEVEL=DEBUG
+      - WORK_DIR=/app/workspace
+      - MODEL_DIR=/app/models
+      - LOG_DIR=/app/logs
+    command: sh -c "pytest tests/ -v --cov=app --cov-report=html --cov-report=term-missing || exit 1"
+    networks:
+      - video-subtitle-network
+
+networks:
+  video-subtitle-network:
+    driver: bridge
+

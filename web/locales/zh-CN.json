@@ -1,0 +1,46 @@
+{
+  "title": "视频字幕处理",
+  "subtitle": "输入YouTube URL，获取并处理字幕",
+  "youtubeUrl": "YouTube URL",
+  "youtubeUrlPlaceholder": "请输入YouTube视频链接，例如：https://www.youtube.com/watch?v=...",
+  "subtitlePath": "字幕文件路径",
+  "subtitlePathPlaceholder": "字幕文件路径（可选，如果提供YouTube URL则自动获取）",
+  "submit": "提交",
+  "processing": "处理中...",
+  "taskStatus": {
+    "pending": "等待中",
+    "running": "处理中",
+    "completed": "已完成",
+    "failed": "失败",
+    "cancelled": "已取消"
+  },
+  "progress": "进度",
+  "message": "状态",
+  "download": "下载字幕",
+  "error": "错误",
+  "success": "成功",
+  "invalidUrl": "请输入有效的YouTube URL",
+  "taskCreated": "任务已创建",
+  "checkingStatus": "检查任务状态...",
+  "downloadSuccess": "下载成功",
+  "downloadError": "下载失败",
+  "videoDownload": {
+    "title": "视频下载",
+    "downloadVideo": "下载视频",
+    "downloadVideoFile": "下载视频文件",
+    "downloading": "下载中...",
+    "processing": "处理中...",
+    "taskCreated": "视频下载任务已创建",
+    "completed": "视频下载完成",
+    "failed": "视频下载失败",
+    "createFailed": "创建视频下载任务失败",
+    "downloadSuccess": "视频下载成功",
+    "downloadError": "视频下载失败"
+  },
+  "subtitleContent": "字幕内容",
+  "viewSubtitle": "查看字幕",
+  "loading": "加载中...",
+  "close": "关闭",
+  "subtitleTask": "字幕任务"
+}
+

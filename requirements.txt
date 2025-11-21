@@ -1,0 +1,45 @@
+# FastAPI 核心依赖
+fastapi>=0.104.1
+uvicorn[standard]>=0.24.0
+pydantic>=2.5.0
+pydantic-settings>=2.1.0
+python-multipart>=0.0.6
+
+# HTTP 客户端
+httpx>=0.25.0
+requests>=2.31.0
+
+# 异步支持
+aiofiles>=23.2.1
+
+# 环境变量管理
+python-dotenv>=1.0.0
+
+# 日志
+loguru>=0.7.2
+
+# Core 模块依赖
+langdetect>=1.0.9  # 语言检测
+pydub>=0.25.1  # 音频处理
+json-repair>=0.7.0  # JSON 修复
+openai>=1.0.0  # OpenAI API 客户端
+tenacity>=8.2.0  # 重试机制
+diskcache>=5.6.0  # 磁盘缓存
+setuptools>=65.0.0  # 提供 distutils（Python 3.12 需要）
+gputil>=1.4.0  # GPU 监控工具
+
+# 测试依赖
+pytest>=7.4.0
+pytest-asyncio>=0.21.0
+pytest-cov>=4.1.0  # 代码覆盖率
+
+# 视频下载
+yt-dlp>=2023.12.30  # YouTube 视频下载工具
+
+# 可选依赖（根据需要取消注释）
+# faster-whisper>=0.10.0  # Faster Whisper ASR（需要时安装）
+# torch>=2.0.0  # PyTorch（用于 AI 模型，需要时安装）
+
+# WhisperX（用于精准时间戳转录）
+whisperx>=3.1.1
+
