@@ -198,13 +198,9 @@ class SubtitleService:
             logger.info(f"[任务 {task_id}] 需要 LLM，开始验证 LLM 配置")
             self.task_manager.update_task(task_id, progress=2, message="验证 LLM 配置")
             # 使用健康检查器验证并设置 LLM 配置（全局统一处理，自动处理错误）
+            # 从环境变量获取配置
             health_checker = get_health_checker()
-            health_checker.ensure_healthy(
-                core_config.base_url,
-                core_config.api_key,
-                core_config.llm_model,
-                force=False,
-            )
+            health_checker.ensure_healthy(force=False)
 
     async def _process_split(
         self,

@@ -133,3 +133,38 @@ class SubtitleResponse(TaskResponse):
     video_task: Optional[VideoTaskInfo] = Field(
         None, description="关联的视频下载任务信息"
     )
+
+
+class DictionaryQueryRequest(BaseModel):
+    """词典查询请求"""
+
+    word: str = Field(..., description="单词文本")
+    furigana: Optional[str] = Field(None, description="平假名读音")
+    romaji: Optional[str] = Field(None, description="罗马字读音")
+    part_of_speech: Optional[str] = Field(None, description="词性")
+
+
+class DictionaryMeaning(BaseModel):
+    """词典释义"""
+
+    meaning: str = Field(..., description="中文释义")
+    example: Optional[str] = Field(None, description="例句（日语）")
+    example_translation: Optional[str] = Field(None, description="例句翻译（中文）")
+
+
+class DictionaryPronunciation(BaseModel):
+    """词典发音信息"""
+
+    furigana: str = Field(default="", description="平假名读音")
+    romaji: str = Field(default="", description="罗马字读音")
+
+
+class DictionaryQueryResponse(BaseModel):
+    """词典查询响应"""
+
+    word: str = Field(..., description="单词文本")
+    pronunciation: DictionaryPronunciation = Field(..., description="发音信息")
+    part_of_speech: str = Field(..., description="词性（中文）")
+    meanings: list[DictionaryMeaning] = Field(default_factory=list, description="释义列表")
+    usage_notes: Optional[str] = Field(None, description="使用说明")
+    error: Optional[str] = Field(None, description="错误信息（如果有）")

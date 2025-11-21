@@ -11,6 +11,7 @@ from typing import Optional
 
 from app.core.llm.check_llm import check_llm_connection
 from app.core.utils.logger import setup_logger
+from app.config import LLM_API_BASE, LLM_API_KEY, LLM_MODEL
 
 logger = setup_logger("llm_health_check")
 
@@ -143,30 +144,26 @@ class LLMHealthChecker:
 
         return is_healthy, message
 
-    def ensure_healthy(
-        self,
-        base_url: Optional[str],
-        api_key: Optional[str],
-        model: Optional[str],
-        force: bool = False,
-    ) -> None:
+    def ensure_healthy(self, force: bool = False) -> None:
         """
         确保 LLM 配置健康（验证配置、检查健康状态、设置环境变量）
-        如果配置不完整或健康检查失败，抛出异常
+        从默认配置获取配置，如果配置不完整或健康检查失败，抛出异常
 
         Args:
-            base_url: API 基础 URL
-            api_key: API 密钥
-            model: 模型名称
             force: 是否强制检查（忽略缓存）
 
         Raises:
             ValueError: 配置不完整
             Exception: 健康检查失败
         """
+        # 从默认配置获取
+        base_url = (LLM_API_BASE or "").strip()
+        api_key = (LLM_API_KEY or "").strip()
+        model = (LLM_MODEL or "").strip()
+
         # 验证配置是否完整
         if not base_url or not api_key or not model:
-            error_msg = "LLM API 未配置, 请检查LLM配置"
+            error_msg = "LLM API 未配置, 请检查配置或环境变量"
             logger.error(error_msg)
             raise ValueError(error_msg)
 
@@ -184,9 +181,46 @@ class LLMHealthChecker:
         logger.info(f"LLM 连接验证成功: base_url={base_url}, model={model}")
 
     def get_health_status(
-        self, base_url: str, api_key: str, model: str
+        self,
+        base_url: Optional[str] = None,
+        api_key: Optional[str] = None,
+        model: Optional[str] = None,
     ) -> Optional[LLMHealthStatus]:
-        """获取健康状态（不执行检查）"""
+        """获取健康状态（不执行检查）
+
+        Args:
+            base_url: API 基础 URL，如果为 None 则从默认配置获取
+            api_key: API 密钥，如果为 None 则从默认配置获取
+            model: 模型名称，如果为 None 则从默认配置获取
+
+        Returns:
+            健康状态，如果未找到则返回 None
+        """
+        # 如果参数未提供，从默认配置获取
+        if not base_url or not api_key or not model:
+            try:
+                from app.config import LLM_API_BASE, LLM_API_KEY, LLM_MODEL
+            except ImportError:
+                # 如果导入失败，回退到环境变量
+                import os
+
+                if not base_url:
+                    base_url = os.getenv("OPENAI_BASE_URL", "").strip()
+                if not api_key:
+                    api_key = os.getenv("OPENAI_API_KEY", "").strip()
+                if not model:
+                    model = os.getenv("OPENAI_MODEL", "").strip()
+            else:
+                if not base_url:
+                    base_url = (LLM_API_BASE or "").strip()
+                if not api_key:
+                    api_key = (LLM_API_KEY or "").strip()
+                if not model:
+                    model = (LLM_MODEL or "").strip()
+
+        if not base_url or not api_key or not model:
+            return None
+
         config_key = self._get_config_key(base_url, api_key, model)
         with self.lock:
             return self.health_status.get(config_key)

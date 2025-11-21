@@ -1,7 +1,7 @@
 "use client";
 
 import React, { RefObject, useEffect } from "react";
-import { SubtitleItem, type SentenceData } from "./subtitle-item";
+import { SubtitleItem, WordToken, type SentenceData } from "./subtitle-item";
 
 // ------------------------------------------------------------------
 // SubtitleList 组件
@@ -10,6 +10,8 @@ interface SubtitleListProps {
   subtitleData: SentenceData[];
   activeIndex: number;
   onSeek: (seconds: number) => void; // 跳转到指定时间（秒）
+  onTokenDictionaryClick?: (token: WordToken) => void; // token 字典查询回调
+  onPause?: () => void; // 暂停播放回调
   currentTime: number; // 当前播放时间（毫秒）
   subtitleListRef: RefObject<HTMLDivElement>;
   activeSubtitleRef: RefObject<HTMLDivElement>;
@@ -19,6 +21,8 @@ export const SubtitleList: React.FC<SubtitleListProps> = ({
   subtitleData,
   activeIndex,
   onSeek,
+  onTokenDictionaryClick,
+  onPause,
   currentTime,
   subtitleListRef,
   activeSubtitleRef,
@@ -55,6 +59,8 @@ export const SubtitleList: React.FC<SubtitleListProps> = ({
             isActive={isActive}
             onClick={() => onSeek(sentence.startTime)}
             onTokenClick={onSeek}
+            onTokenDictionaryClick={onTokenDictionaryClick}
+            onPause={onPause}
             currentTime={currentTime}
             innerRef={isActive ? activeSubtitleRef : undefined}
           />

@@ -48,9 +48,11 @@ interface WordTokenProps {
   token: WordToken;
   currentTime: number; // 当前播放时间（毫秒）
   onTokenClick?: (startTime: number) => void; // token 点击回调，参数为开始时间（秒）
+  onTokenDictionaryClick?: (token: WordToken) => void; // token 字典查询回调
+  onPause?: () => void; // 暂停播放回调
 }
 
-const WordTokenComponent: React.FC<WordTokenProps> = ({ token, currentTime, onTokenClick }) => {
+const WordTokenComponent: React.FC<WordTokenProps> = ({ token, currentTime, onTokenClick, onTokenDictionaryClick, onPause }) => {
   const showFurigana = token.furigana && token.furigana !== token.text;
 
   // 判断当前 token 是否应该高亮
@@ -64,8 +66,26 @@ const WordTokenComponent: React.FC<WordTokenProps> = ({ token, currentTime, onTo
     }
   };
 
+  const handleRightClick = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    // 暂停播放
+    if (onPause) {
+      onPause();
+    }
+    // 打开字典
+    if (onTokenDictionaryClick) {
+      onTokenDictionaryClick(token);
+    }
+  };
+
   return (
-    <div className="flex flex-col items-center group/word cursor-pointer" onClick={handleClick}>
+    <div
+      className="flex flex-col items-center group/word cursor-pointer"
+      onClick={handleClick}
+      onContextMenu={handleRightClick}
+      onDoubleClick={() => onTokenDictionaryClick?.(token)}
+    >
       {/* 假名 */}
       <span className="text-[10px] text-gray-500 h-4 leading-none mb-0.5 opacity-0 group-hover/word:opacity-100 transition-opacity select-none">
         {showFurigana ? token.furigana : ""}
@@ -95,11 +115,22 @@ interface SubtitleItemProps {
   isActive: boolean;
   onClick: () => void;
   onTokenClick?: (startTime: number) => void; // token 点击回调，参数为开始时间（秒）
+  onTokenDictionaryClick?: (token: WordToken) => void; // token 字典查询回调
+  onPause?: () => void; // 暂停播放回调
   currentTime: number; // 当前播放时间（毫秒）
   innerRef?: React.Ref<HTMLDivElement>;
 }
 
-export const SubtitleItem: React.FC<SubtitleItemProps> = ({ sentence, isActive, onClick, onTokenClick, currentTime, innerRef }) => {
+export const SubtitleItem: React.FC<SubtitleItemProps> = ({
+  sentence,
+  isActive,
+  onClick,
+  onTokenClick,
+  onTokenDictionaryClick,
+  onPause,
+  currentTime,
+  innerRef,
+}) => {
   return (
     <div
       ref={innerRef}
@@ -116,7 +147,14 @@ export const SubtitleItem: React.FC<SubtitleItemProps> = ({ sentence, isActive, 
       {/* 单词块布局 */}
       <div className="flex flex-wrap gap-x-1 gap-y-3 items-end mb-1 mx-4">
         {sentence.tokens.map((token, tIdx) => (
-          <WordTokenComponent key={tIdx} token={token} currentTime={currentTime} onTokenClick={onTokenClick} />
+          <WordTokenComponent
+            key={tIdx}
+            token={token}
+            currentTime={currentTime}
+            onTokenClick={onTokenClick}
+            onTokenDictionaryClick={onTokenDictionaryClick}
+            onPause={onPause}
+          />
         ))}
       </div>
 

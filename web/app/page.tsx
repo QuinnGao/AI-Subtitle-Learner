@@ -2,12 +2,19 @@
 
 import React, { useState, useRef, useEffect, useCallback } from "react";
 import { AlertCircle, Play, Pause } from "lucide-react";
-import { downloadVideoByUrl, getVideoDownloadTaskStatus, getSubtitleContent, type VideoDownloadResponse } from "@/lib/api";
+import {
+  downloadVideoByUrl,
+  getVideoDownloadTaskStatus,
+  getSubtitleContent,
+  type VideoDownloadResponse,
+  type SubtitleContentItem,
+} from "@/lib/api";
 import ReactPlayer from "react-player";
 import { SubtitleList } from "@/components/subtitle-list";
 import { AnalysisHeader } from "@/components/analysis-header";
 import { InputView } from "@/components/input-view";
 import { ProcessingView } from "@/components/processing-view";
+import { DictionaryDrawer } from "@/components/dictionary-drawer";
 import type { SentenceData, TokenType, WordToken } from "@/components/subtitle-item";
 
 // ------------------------------------------------------------------
@@ -20,22 +27,7 @@ type AppState = "idle" | "processing" | "completed" | "error";
 // ------------------------------------------------------------------
 // 将后端返回的 JSON 数据转换为前端需要的格式
 // ------------------------------------------------------------------
-interface BackendSubtitleItem {
-  start_time: number; // 毫秒
-  end_time: number; // 毫秒
-  original_text: string;
-  translation: string;
-  tokens?: Array<{
-    text: string;
-    furigana?: string;
-    romaji?: string;
-    type?: string;
-    start_time?: number; // 毫秒
-    end_time?: number; // 毫秒
-  }>;
-}
-
-const convertSubtitleData = (backendData: BackendSubtitleItem[]): SentenceData[] => {
+const convertSubtitleData = (backendData: SubtitleContentItem[]): SentenceData[] => {
   return backendData.map((item) => {
     // 转换 tokens，如果没有 tokens 则从 original_text 创建简单的 tokens
     let tokens: WordToken[] = [];
@@ -93,6 +85,10 @@ export default function VideoLearningPage() {
   const activeSubtitleRef = useRef<HTMLDivElement>(null);
   const [currentTime, setCurrentTime] = useState(0);
   const [isPlaying, setIsPlaying] = useState(false);
+
+  // Dictionary State
+  const [dictionaryWord, setDictionaryWord] = useState<WordToken | null>(null);
+  const [isDictionaryOpen, setIsDictionaryOpen] = useState(false);
 
   const setPlayerRef = useCallback((player: HTMLVideoElement) => {
     if (!player) return;
@@ -180,6 +176,12 @@ export default function VideoLearningPage() {
     setIsPlaying(true); // Auto play on seek
   };
 
+  // 4. 点击单词查询字典
+  const handleTokenDictionaryClick = (token: WordToken) => {
+    setDictionaryWord(token);
+    setIsDictionaryOpen(true);
+  };
+
   // ----------------------------------------------------------------
   // UI Renderers
   // ----------------------------------------------------------------
@@ -247,34 +249,41 @@ export default function VideoLearningPage() {
             subtitleData={subtitleData}
             activeIndex={activeIndex}
             onSeek={seekTo}
+            onTokenDictionaryClick={handleTokenDictionaryClick}
+            onPause={() => setIsPlaying(false)}
             currentTime={currentTimeMs}
             subtitleListRef={subtitleListRef}
             activeSubtitleRef={activeSubtitleRef}
           />
         </div>
+
+        {/* 字典抽屉/弹出框 */}
+        <DictionaryDrawer isOpen={isDictionaryOpen} onClose={() => setIsDictionaryOpen(false)} word={dictionaryWord} />
       </div>
     );
   };
 
   return (
     <div className="min-h-screen bg-gray-50 font-sans text-gray-900 selection:bg-blue-100">
-      {appState === "idle" && <InputView url={url} onUrlChange={setUrl} onSubmit={handleAnalyze} />}
-      {appState === "processing" && <ProcessingView progress={progress} statusMessage={statusMessage} />}
-      {appState === "completed" && renderCompletedView()}
+      <div className="max-w-screen-md mx-auto">
+        {appState === "idle" && <InputView url={url} onUrlChange={setUrl} onSubmit={handleAnalyze} />}
+        {appState === "processing" && <ProcessingView progress={progress} statusMessage={statusMessage} />}
+        {appState === "completed" && renderCompletedView()}
 
-      {appState === "error" && (
-        <div className="flex flex-col items-center justify-center min-h-[60vh] space-y-4 text-red-600 animate-in zoom-in">
-          <AlertCircle size={48} />
-          <h3 className="text-xl font-semibold">Something went wrong</h3>
-          <p className="text-gray-600">{errorMsg}</p>
-          <button
-            onClick={() => setAppState("idle")}
-            className="mt-4 px-4 py-2 bg-gray-900 text-white rounded-lg text-sm hover:bg-gray-800 transition-colors"
-          >
-            Try Again
-          </button>
-        </div>
-      )}
+        {appState === "error" && (
+          <div className="flex flex-col items-center justify-center min-h-[60vh] space-y-4 text-red-600 animate-in zoom-in">
+            <AlertCircle size={48} />
+            <h3 className="text-xl font-semibold">Something went wrong</h3>
+            <p className="text-gray-600">{errorMsg}</p>
+            <button
+              onClick={() => setAppState("idle")}
+              className="mt-4 px-4 py-2 bg-gray-900 text-white rounded-lg text-sm hover:bg-gray-800 transition-colors"
+            >
+              Try Again
+            </button>
+          </div>
+        )}
+      </div>
     </div>
   );
 }

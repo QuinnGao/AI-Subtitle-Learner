@@ -16,13 +16,24 @@ from app.routers import (
     batch,
 )
 from app.core.llm.health_check import get_health_checker, _global_health_checker
+from app.core.utils.logger import setup_logger
+
+logger = setup_logger("main")
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """应用生命周期管理"""
     # 启动时执行
-    get_health_checker(check_interval=60)  # 1分钟检查一次
+    health_checker = get_health_checker(check_interval=60)  # 1分钟检查一次
+
+    # 第一次启动时直接执行一次健康检查
+    try:
+        health_checker.ensure_healthy(force=True)
+        logger.info("启动时健康检查成功")
+    except Exception as e:
+        logger.warning(f"启动时健康检查失败: {e}，将在首次使用时重试")
+
     yield
     # 关闭时执行
 
