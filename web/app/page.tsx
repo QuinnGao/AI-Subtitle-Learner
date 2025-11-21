@@ -21,8 +21,8 @@ type AppState = "idle" | "processing" | "completed" | "error";
 // 将后端返回的 JSON 数据转换为前端需要的格式
 // ------------------------------------------------------------------
 interface BackendSubtitleItem {
-  start: number; // 秒
-  end: number; // 秒
+  start_time: number; // 毫秒
+  end_time: number; // 毫秒
   original_text: string;
   translation: string;
   tokens?: Array<{
@@ -30,6 +30,8 @@ interface BackendSubtitleItem {
     furigana?: string;
     romaji?: string;
     type?: string;
+    start_time?: number; // 毫秒
+    end_time?: number; // 毫秒
   }>;
 }
 
@@ -45,6 +47,8 @@ const convertSubtitleData = (backendData: BackendSubtitleItem[]): SentenceData[]
         furigana: token.furigana || "",
         romaji: token.romaji || "",
         type: (token.type as TokenType) || "other",
+        start_time: token.start_time,
+        end_time: token.end_time,
       }));
     } else {
       // 如果没有 tokens，将 original_text 按字符分割作为简单的 tokens
@@ -57,8 +61,8 @@ const convertSubtitleData = (backendData: BackendSubtitleItem[]): SentenceData[]
     }
 
     return {
-      startTime: item.start,
-      endTime: item.end,
+      startTime: item.start_time / 1000, // 转换为秒
+      endTime: item.end_time / 1000, // 转换为秒
       text: item.original_text,
       translation: item.translation || "",
       tokens: tokens,
@@ -185,6 +189,7 @@ export default function VideoLearningPage() {
   // 结果界面 (播放器 + 截图还原的卡片)
   const renderCompletedView = () => {
     // 找到当前正在播放的句子索引
+    const currentTimeMs = currentTime * 1000; // 转换为毫秒
     const activeIndex = subtitleData.findIndex((s) => currentTime >= s.startTime && currentTime < s.endTime);
 
     return (
@@ -242,6 +247,7 @@ export default function VideoLearningPage() {
             subtitleData={subtitleData}
             activeIndex={activeIndex}
             onSeek={seekTo}
+            currentTime={currentTimeMs}
             subtitleListRef={subtitleListRef}
             activeSubtitleRef={activeSubtitleRef}
           />

@@ -9,12 +9,20 @@ import { SubtitleItem, type SentenceData } from "./subtitle-item";
 interface SubtitleListProps {
   subtitleData: SentenceData[];
   activeIndex: number;
-  onSeek: (seconds: number) => void;
+  onSeek: (seconds: number) => void; // 跳转到指定时间（秒）
+  currentTime: number; // 当前播放时间（毫秒）
   subtitleListRef: RefObject<HTMLDivElement>;
   activeSubtitleRef: RefObject<HTMLDivElement>;
 }
 
-export const SubtitleList: React.FC<SubtitleListProps> = ({ subtitleData, activeIndex, onSeek, subtitleListRef, activeSubtitleRef }) => {
+export const SubtitleList: React.FC<SubtitleListProps> = ({
+  subtitleData,
+  activeIndex,
+  onSeek,
+  currentTime,
+  subtitleListRef,
+  activeSubtitleRef,
+}) => {
   // 当激活的字幕索引变化时，自动滚动到该字幕
   useEffect(() => {
     if (activeSubtitleRef.current && subtitleListRef.current && activeIndex >= 0) {
@@ -46,6 +54,8 @@ export const SubtitleList: React.FC<SubtitleListProps> = ({ subtitleData, active
             sentence={sentence}
             isActive={isActive}
             onClick={() => onSeek(sentence.startTime)}
+            onTokenClick={onSeek}
+            currentTime={currentTime}
             innerRef={isActive ? activeSubtitleRef : undefined}
           />
         );
