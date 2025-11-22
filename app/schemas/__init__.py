@@ -10,21 +10,11 @@ from app.schemas.common import (
 from app.schemas.transcribe import (
     TranscribeConfig,
     TranscribeRequest,
-    TranscribeResponse,
 )
 from app.schemas.subtitle import (
     SubtitleConfig,
     SubtitleRequest,
     SubtitleResponse,
-)
-from app.schemas.synthesis import (
-    SynthesisConfig,
-    SynthesisRequest,
-    SynthesisResponse,
-)
-from app.schemas.batch import (
-    BatchTaskRequest,
-    BatchTaskResponse,
 )
 
 __all__ = [
@@ -34,14 +24,8 @@ __all__ = [
     "TaskResponse",
     "TranscribeConfig",
     "TranscribeRequest",
-    "TranscribeResponse",
     "SubtitleConfig",
     "SubtitleRequest",
     "SubtitleResponse",
-    "SynthesisConfig",
-    "SynthesisRequest",
-    "SynthesisResponse",
-    "BatchTaskRequest",
-    "BatchTaskResponse",
 ]
 

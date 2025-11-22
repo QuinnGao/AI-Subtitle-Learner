@@ -17,74 +17,6 @@ class SubtitleProcessData:
     optimized_text: str = ""
 
 
-class SupportedAudioFormats(Enum):
-    """支持的音频格式"""
-
-    AAC = "aac"
-    AC3 = "ac3"
-    AIFF = "aiff"
-    AMR = "amr"
-    APE = "ape"
-    AU = "au"
-    FLAC = "flac"
-    M4A = "m4a"
-    MP2 = "mp2"
-    MP3 = "mp3"
-    MKA = "mka"
-    OGA = "oga"
-    OGG = "ogg"
-    OPUS = "opus"
-    RA = "ra"
-    WAV = "wav"
-    WMA = "wma"
-
-
-class SupportedVideoFormats(Enum):
-    """支持的视频格式"""
-
-    MP4 = "mp4"
-    WEBM = "webm"
-    OGM = "ogm"
-    MOV = "mov"
-    MKV = "mkv"
-    AVI = "avi"
-    WMV = "wmv"
-    FLV = "flv"
-    M4V = "m4v"
-    TS = "ts"
-    MPG = "mpg"
-    MPEG = "mpeg"
-    VOB = "vob"
-    ASF = "asf"
-    RM = "rm"
-    RMVB = "rmvb"
-    M2TS = "m2ts"
-    MTS = "mts"
-    DV = "dv"
-    GXF = "gxf"
-    TOD = "tod"
-    MXF = "mxf"
-    F4V = "f4v"
-
-
-class SupportedSubtitleFormats(Enum):
-    """支持的字幕格式"""
-
-    SRT = "srt"
-    ASS = "ass"
-    VTT = "vtt"
-
-
-class OutputSubtitleFormatEnum(Enum):
-    """字幕输出格式"""
-
-    SRT = "srt"
-    ASS = "ass"
-    VTT = "vtt"
-    JSON = "json"
-    TXT = "txt"
-
-
 class TranscribeOutputFormatEnum(Enum):
     """转录输出格式"""
 
@@ -511,58 +443,6 @@ class TranscribeConfig:
     whisperx_compute_type: str = "float32"  # CPU 默认使用 float32
     whisperx_batch_size: int = 16
 
-    def _mask_key(self, key: Optional[str]) -> str:
-        """Mask sensitive key for display"""
-        if not key or len(key) <= 12:
-            return "****"
-        return f"{key[:4]}...{key[-4:]}"
-
-    def print_config(self) -> str:
-        """Print transcription configuration"""
-        lines = ["=========== Transcription Task ==========="]
-        lines.append(
-            f"Model: {self.transcribe_model.value if self.transcribe_model else 'None'}"
-        )
-        lines.append(f"Language: {self.transcribe_language or 'Auto'}")
-        lines.append(f"Word Timestamp: {self.need_word_time_stamp}")
-        lines.append(
-            f"Output Format: {self.output_format.value if self.output_format else 'None'}"
-        )
-
-        if self.transcribe_model == TranscribeModelEnum.WHISPER_API:
-            lines.append(f"API Base: {self.whisper_api_base}")
-            lines.append(f"API Key: {self._mask_key(self.whisper_api_key)}")
-            lines.append(f"API Model: {self.whisper_api_model}")
-            if self.whisper_api_prompt:
-                lines.append(f"Prompt: {self.whisper_api_prompt[:30]}...")
-
-        elif self.transcribe_model == TranscribeModelEnum.FASTER_WHISPER:
-            lines.append(
-                f"Model: {self.faster_whisper_model.value if self.faster_whisper_model else 'None'}"
-            )
-            lines.append(f"Device: {self.faster_whisper_device}")
-            lines.append(f"VAD Filter: {self.faster_whisper_vad_filter}")
-            if self.faster_whisper_vad_filter:
-                lines.append(
-                    f"VAD Method: {self.faster_whisper_vad_method.value if self.faster_whisper_vad_method else 'None'}"
-                )
-                lines.append(f"VAD Threshold: {self.faster_whisper_vad_threshold}")
-            lines.append(f"One Word Per Segment: {self.faster_whisper_one_word}")
-
-        elif self.transcribe_model == TranscribeModelEnum.WHISPER_CPP:
-            lines.append(
-                f"Model: {self.whisper_model.value if self.whisper_model else 'None'}"
-            )
-
-        elif self.transcribe_model == TranscribeModelEnum.WHISPERX:
-            lines.append(f"Model: {self.whisperx_model or 'large-v3'}")
-            lines.append(f"Device: {self.whisperx_device}")
-            lines.append(f"Compute Type: {self.whisperx_compute_type}")
-            lines.append(f"Batch Size: {self.whisperx_batch_size}")
-
-        lines.append("=" * 42)
-        return "\n".join(lines)
-
 
 @dataclass
 class SubtitleConfig:
@@ -590,49 +470,6 @@ class SubtitleConfig:
     subtitle_style: Optional[str] = None
     custom_prompt_text: Optional[str] = None
 
-    def _mask_key(self, key: Optional[str]) -> str:
-        """Mask sensitive key for display"""
-        if not key or len(key) <= 8:
-            return "****"
-        return f"{key[:4]}...{key[-4:]}"
-
-    def print_config(self) -> str:
-        """Print subtitle processing configuration"""
-        lines = ["=========== Subtitle Processing Task ==========="]
-
-        if self.need_split:
-            lines.append("Split: Yes")
-            lines.append(f"  Max Words (CJK): {self.max_word_count_cjk}")
-            lines.append(f"  Max Words (English): {self.max_word_count_english}")
-
-        if self.need_optimize:
-            lines.append("Optimize: Yes")
-            lines.append(f"  Model: {self.llm_model or 'None'}")
-            if self.custom_prompt_text:
-                lines.append(f"  Custom Prompt: {self.custom_prompt_text[:30]}...")
-
-        if self.need_translate:
-            lines.append("Translate: Yes")
-            lines.append(
-                f"  Service: {self.translator_service.value if self.translator_service else 'None'}"
-            )
-            if self.translator_service == TranslatorServiceEnum.OPENAI:
-                lines.append(f"  API Base: {self.base_url}")
-                lines.append(f"  API Key: {self._mask_key(self.api_key)}")
-                lines.append(f"  Model: {self.llm_model}")
-                lines.append(f"  Reflect Translation: {self.need_reflect}")
-            elif self.translator_service == TranslatorServiceEnum.DEEPLX:
-                lines.append(f"  DeepLX Endpoint: {self.deeplx_endpoint}")
-            lines.append(
-                f"  Target Language: {self.target_language.value if self.target_language else 'None'}"
-            )
-            lines.append(f"  Concurrency: {self.thread_num}")
-            lines.append(f"  Batch Size: {self.batch_size}")
-
-        lines.append(f"Layout: {self.subtitle_layout.value}")
-        lines.append("=" * 48)
-        return "\n".join(lines)
-
 
 @dataclass
 class SynthesisConfig:
@@ -641,18 +478,6 @@ class SynthesisConfig:
     need_video: bool = True
     soft_subtitle: bool = True
     video_quality: VideoQualityEnum = VideoQualityEnum.MEDIUM
-
-    def print_config(self) -> str:
-        """Print video synthesis configuration"""
-        lines = ["=========== Video Synthesis Task ==========="]
-        lines.append(f"Generate Video: {self.need_video}")
-        if self.need_video:
-            lines.append(f"Subtitle Type: {'Soft' if self.soft_subtitle else 'Hard'}")
-            lines.append(f"Video Quality: {self.video_quality.value}")
-            lines.append(f"  CRF: {self.video_quality.get_crf()}")
-            lines.append(f"  Preset: {self.video_quality.get_preset()}")
-        lines.append("=" * 44)
-        return "\n".join(lines)
 
 
 @dataclass
@@ -719,63 +544,3 @@ class SynthesisTask:
     need_next_task: bool = False
 
     synthesis_config: Optional[SynthesisConfig] = None
-
-
-@dataclass
-class TranscriptAndSubtitleTask:
-    """转录和字幕任务类"""
-
-    queued_at: Optional[datetime.datetime] = None
-    started_at: Optional[datetime.datetime] = None
-    completed_at: Optional[datetime.datetime] = None
-
-    # 输入
-    file_path: Optional[str] = None
-
-    # 输出
-    output_path: Optional[str] = None
-
-    transcribe_config: Optional[TranscribeConfig] = None
-    subtitle_config: Optional[SubtitleConfig] = None
-
-
-@dataclass
-class FullProcessTask:
-    """完整处理任务类(转录+字幕+合成)"""
-
-    queued_at: Optional[datetime.datetime] = None
-    started_at: Optional[datetime.datetime] = None
-    completed_at: Optional[datetime.datetime] = None
-
-    # 输入
-    file_path: Optional[str] = None
-    # 输出
-    output_path: Optional[str] = None
-
-    transcribe_config: Optional[TranscribeConfig] = None
-    subtitle_config: Optional[SubtitleConfig] = None
-    synthesis_config: Optional[SynthesisConfig] = None
-
-
-class BatchTaskType(Enum):
-    """批量处理任务类型"""
-
-    TRANSCRIBE = "批量转录"
-    SUBTITLE = "批量字幕"
-    TRANS_SUB = "转录+字幕"
-    FULL_PROCESS = "全流程处理"
-
-    def __str__(self):
-        return self.value
-
-
-class BatchTaskStatus(Enum):
-    """批量处理任务状态"""
-
-    WAITING = "等待中"
-    RUNNING = "处理中"
-    COMPLETED = "已完成"
-    FAILED = "失败"
-
-    def __str__(self):
-        return self.value

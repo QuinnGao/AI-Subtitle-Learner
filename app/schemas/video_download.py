@@ -8,15 +8,6 @@ from pydantic import BaseModel, Field
 from app.schemas.common import TaskResponse
 
 
-class VideoDownloadRequest(BaseModel):
-    """视频下载请求"""
-
-    url: str = Field(..., description="视频 URL")
-    need_subtitle: bool = Field(default=True, description="是否需要下载字幕")
-    need_thumbnail: bool = Field(default=False, description="是否需要下载缩略图")
-    work_dir: Optional[str] = Field(None, description="工作目录（可选，默认使用配置的工作目录）")
-
-
 class SubtitleTaskInfo(BaseModel):
     """字幕任务信息"""
     

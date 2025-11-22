@@ -156,8 +156,4 @@ class TranscribeRequest(BaseModel):
     )
 
 
-class TranscribeResponse(TaskResponse):
-    """转录响应"""
-
-    pass
 

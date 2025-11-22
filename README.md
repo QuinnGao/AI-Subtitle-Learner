@@ -1,25 +1,47 @@
-# 视频字幕处理 API
+# AI Subtitle Learner (AI字幕学习助手)
 
-这是一个基于 FastAPI 构建的视频字幕处理后端服务，提供视频转录、字幕处理、视频合成等功能。
+这是一个完整的AI字幕语言学习系统，包含基于 FastAPI 的后端服务和基于 Next.js 的前端应用。支持从 YouTube 下载视频、自动转录、字幕处理、翻译和交互式学习等功能。
 
 ## 技术栈
 
+### 后端
 - **FastAPI**: 现代、快速的 Web 框架，用于构建 API
 - **Python 3.12**: 编程语言
 - **Uvicorn**: ASGI 服务器
 - **Pydantic**: 数据验证和设置管理
+- **Whisper/Faster Whisper**: 语音识别模型
+- **LLM**: 大语言模型（用于翻译和字典查询）
+
+### 前端
+- **Next.js 14**: React 框架
+- **TypeScript**: 类型安全
+- **Tailwind CSS**: 样式框架
+- **shadcn/ui**: UI 组件库
+- **i18next**: 国际化
+- **React Player**: 视频播放器
+- **ESLint + Prettier**: 代码质量工具
 
 ## 项目特性
 
+### 后端（FastAPI）
 - 🚀 高性能异步 API
 - 📝 自动生成 API 文档（Swagger UI 和 ReDoc）
 - 🔒 类型提示和数据验证
-- 🎬 视频转录：支持多种 ASR 模型（Whisper、Faster Whisper 等）
-- 🌐 字幕翻译：支持多种翻译服务（OpenAI、DeepLX、Bing、Google）
-- ✂️ 字幕处理：自动分割、优化、翻译
-- 🎥 视频合成：将字幕合成到视频中
-- 📦 批量处理：支持批量处理多个文件
+- 🎬 视频下载与转录：从 YouTube 下载音频并自动转录
+- 🌐 字幕翻译：支持多种翻译服务（OpenAI LLM、DeepLX、Bing、Google）
+- ✂️ 字幕处理：自动分割、日语分析、翻译
+- 📚 字典查询：基于 LLM 的单词查询功能
 - 🔄 异步任务：后台任务处理，支持进度查询
+- 💾 本地缓存：智能缓存机制，提升处理效率
+
+### 前端（Next.js）
+- 🎨 现代化 UI：基于 Tailwind CSS 和 shadcn/ui
+- 🎬 视频播放器：集成 React Player，支持播放控制
+- 📝 交互式字幕：实时高亮当前播放位置，点击跳转
+- 📚 字典查询：右键点击单词查询释义（支持响应式布局）
+- 🌐 国际化：支持中文/英文切换
+- 📱 响应式设计：适配桌面和移动设备
+- 🎯 代码质量：集成 ESLint、Prettier 和 Tailwind CSS 插件
 
 ## 快速开始
 
@@ -114,8 +136,9 @@ uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
 ```
 
 应用启动后，访问：
-- API 文档：http://localhost:8000/docs
-- 健康检查：http://localhost:8000/health
+- **后端 API 文档**：http://localhost:8000/docs
+- **健康检查**：http://localhost:8000/health
+- **前端界面**：http://localhost:3000（需要单独启动前端服务）
 
 ### 5. 创建项目结构
 
@@ -240,6 +263,25 @@ uvicorn app.main:app --host 0.0.0.0 --port 8000
 
 应用将在 `http://localhost:8000` 启动。
 
+### 10. 启动前端服务（可选）
+
+如果需要使用前端界面：
+
+```bash
+# 进入前端目录
+cd web
+
+# 安装依赖
+npm install
+
+# 启动开发服务器
+npm run dev
+```
+
+前端服务将在 `http://localhost:3000` 启动。
+
+**注意**：前端需要后端 API 服务正在运行。
+
 ## API 文档
 
 启动应用后，可以访问以下地址查看自动生成的 API 文档：
@@ -252,27 +294,16 @@ uvicorn app.main:app --host 0.0.0.0 --port 8000
 ### 健康检查
 - `GET /health` - 健康检查
 
-### 转录相关
-- `POST /api/v1/transcribe` - 创建转录任务
-- `GET /api/v1/transcribe/{task_id}` - 查询转录任务状态
-- `GET /api/v1/transcribe/{task_id}/download` - 下载转录结果
+### 视频分析
+- `POST /api/v1/video/analyze?url=...` - 从 YouTube URL 开始分析任务（下载音频并转录）
+- `GET /api/v1/video/download/{task_id}` - 查询视频下载任务状态
 
 ### 字幕处理
-- `POST /api/v1/subtitle` - 创建字幕处理任务
 - `GET /api/v1/subtitle/{task_id}` - 查询字幕处理任务状态
-- `GET /api/v1/subtitle/{task_id}/download` - 下载字幕处理结果
+- `GET /api/v1/subtitle/{task_id}/content` - 获取字幕内容（JSON 格式，包含时间戳）
 
-### 视频合成
-- `POST /api/v1/synthesis` - 创建视频合成任务
-- `GET /api/v1/synthesis/{task_id}` - 查询视频合成任务状态
-- `GET /api/v1/synthesis/{task_id}/download` - 下载合成后的视频
-
-### 视频信息
-- `GET /api/v1/video/info?file_path=...` - 获取视频信息
-
-### 批量处理
-- `POST /api/v1/batch` - 创建批量处理任务
-- `GET /api/v1/batch/{task_id}` - 查询批量处理任务状态
+### 字典查询
+- `POST /api/v1/subtitle/dictionary/query` - 查询单词释义（基于 LLM）
 
 ## 项目结构说明
 
@@ -285,87 +316,121 @@ uvicorn app.main:app --host 0.0.0.0 --port 8000
 │   ├── routers/             # API 路由模块
 │   │   ├── __init__.py
 │   │   ├── health.py        # 健康检查路由
-│   │   ├── transcribe.py    # 转录相关路由
-│   │   ├── subtitle.py      # 字幕处理路由
-│   │   ├── synthesis.py     # 视频合成路由
-│   │   ├── video.py         # 视频信息路由
-│   │   └── batch.py         # 批量处理路由
+│   │   ├── subtitle.py      # 字幕处理路由（包含字典查询）
+│   │   └── video.py         # 视频下载和分析路由
 │   ├── schemas/             # Pydantic 数据验证模式
 │   │   ├── __init__.py
-│   │   ├── common.py        # 通用数据模型（VideoInfo, TaskResponse等）
-│   │   ├── transcribe.py    # 转录相关模型
+│   │   ├── common.py        # 通用数据模型（TaskResponse等）
 │   │   ├── subtitle.py      # 字幕处理模型
-│   │   ├── synthesis.py     # 视频合成模型
-│   │   └── batch.py         # 批量处理模型
+│   │   ├── transcribe.py    # 转录配置模型
+│   │   └── video_download.py # 视频下载模型
 │   ├── services/            # 业务逻辑服务层
 │   │   ├── __init__.py
 │   │   ├── task_manager.py  # 任务管理器
-│   │   ├── transcribe_service.py    # 转录服务
 │   │   ├── subtitle_service.py      # 字幕处理服务
-│   │   ├── synthesis_service.py     # 视频合成服务
-│   │   ├── video_service.py         # 视频信息服务
-│   │   └── batch_service.py         # 批量处理服务
-│   └── core/                # 核心业务逻辑（保留原有结构）
+│   │   ├── video_download_service.py # 视频下载服务
+│   │   ├── transcribe_service.py    # 转录服务
+│   │   └── dictionary_service.py    # 字典查询服务
+│   └── core/                # 核心业务逻辑
 │       ├── asr/             # 语音识别模块
 │       ├── translate/       # 翻译模块
 │       ├── split/           # 字幕分割模块
-│       ├── optimize/       # 字幕优化模块
-│       ├── tts/             # 文本转语音模块
+│       ├── analyze/         # 文本分析模块（日语分析）
 │       ├── llm/             # 大语言模型模块
 │       ├── utils/           # 工具函数
-│       ├── entities.py      # 实体定义
-│       └── task_factory.py  # 任务工厂
-├── requirements.txt        # Python 依赖
+│       └── entities.py      # 实体定义
+├── web/                      # Next.js 前端应用
+│   ├── app/                 # Next.js App Router
+│   │   ├── layout.tsx       # 根布局
+│   │   ├── page.tsx         # 主页面
+│   │   └── globals.css      # 全局样式
+│   ├── components/          # React 组件
+│   │   ├── ui/             # shadcn/ui 组件
+│   │   ├── subtitle-item.tsx    # 字幕项组件
+│   │   ├── dictionary-drawer.tsx # 字典抽屉组件
+│   │   └── ...
+│   ├── lib/                # 工具函数和配置
+│   │   ├── api.ts          # API 客户端
+│   │   ├── i18n.ts         # i18next 配置
+│   │   └── utils.ts        # 工具函数
+│   ├── locales/            # 国际化文件
+│   ├── .eslintrc.json      # ESLint 配置
+│   ├── .prettierrc.json    # Prettier 配置
+│   └── package.json        # 前端依赖
+├── requirements.txt         # Python 依赖
+├── docker-compose.yml      # Docker Compose 配置
 ├── .env                    # 环境变量配置
 └── README.md               # 项目说明文档
 ```
 
 ## 使用示例
 
-### 创建转录任务
+### 1. 从 YouTube URL 开始分析
 
 ```python
 import requests
 
-# 创建转录任务
-response = requests.post("http://localhost:8000/api/v1/transcribe", json={
-    "file_path": "/path/to/video.mp4",
-    "config": {
-        "transcribe_model": "faster_whisper",
-        "transcribe_language": "zh",
-        "output_format": "srt"
-    }
-})
+# 开始分析任务（下载音频并转录）
+response = requests.post(
+    "http://localhost:8000/api/v1/video/analyze",
+    params={"url": "https://www.youtube.com/watch?v=..."}
+)
 
 task_id = response.json()["task_id"]
 
 # 查询任务状态
-status_response = requests.get(f"http://localhost:8000/api/v1/transcribe/{task_id}")
+status_response = requests.get(
+    f"http://localhost:8000/api/v1/video/download/{task_id}"
+)
 print(status_response.json())
 
-# 下载结果（任务完成后）
+# 获取字幕内容（任务完成后）
 if status_response.json()["status"] == "completed":
-    download_response = requests.get(
-        f"http://localhost:8000/api/v1/transcribe/{task_id}/download"
+    subtitle_task_id = status_response.json()["subtitle_task"]["task_id"]
+    content_response = requests.get(
+        f"http://localhost:8000/api/v1/subtitle/{subtitle_task_id}/content"
     )
-    with open("output.srt", "wb") as f:
-        f.write(download_response.content)
+    subtitle_data = content_response.json()
+    print(subtitle_data)
 ```
 
-### 创建字幕处理任务
+### 2. 查询字典
 
 ```python
-response = requests.post("http://localhost:8000/api/v1/subtitle", json={
-    "subtitle_path": "/path/to/subtitle.srt",
-    "config": {
-        "need_translate": True,
-        "translator_service": "openai",
-        "target_language": "en",
-        "need_optimize": True,
-        "need_split": True
+# 查询单词释义
+response = requests.post(
+    "http://localhost:8000/api/v1/subtitle/dictionary/query",
+    json={
+        "word": "こんにちは",
+        "furigana": "こんにちは",
+        "part_of_speech": "感叹词"
     }
-})
+)
+print(response.json())
 ```
+
+### 3. 前端使用
+
+1. 启动前端服务：
+   ```bash
+   cd web
+   npm install
+   npm run dev
+   ```
+
+2. 访问 http://localhost:3000
+
+3. 输入 YouTube URL，系统会自动：
+   - 下载音频
+   - 转录生成字幕
+   - 处理字幕（分割、分析、翻译）
+   - 显示交互式字幕界面
+
+4. 功能：
+   - 播放视频/音频
+   - 点击字幕跳转到对应时间点
+   - 右键点击单词查询字典
+   - 实时高亮当前播放位置
 
 ## 开发指南
 
@@ -636,11 +701,45 @@ docker-compose restart
 docker-compose exec api bash
 ```
 
+## 前端开发
+
+前端项目位于 `web/` 目录，详细说明请参考 [web/README.md](web/README.md)。
+
+### 快速开始
+
+```bash
+cd web
+npm install
+npm run dev
+```
+
+### 代码质量
+
+```bash
+# 检查代码问题
+npm run lint
+
+# 自动修复
+npm run lint:fix
+
+# 格式化代码
+npm run format
+
+# 检查格式
+npm run format:check
+```
+
 ## 学习资源
 
+### 后端
 - [FastAPI 官方文档](https://fastapi.tiangolo.com/)
 - [FastAPI 中文文档](https://fastapi.tiangolo.com/zh/)
 - [Pydantic 文档](https://docs.pydantic.dev/)
+
+### 前端
+- [Next.js 文档](https://nextjs.org/docs)
+- [Tailwind CSS 文档](https://tailwindcss.com/docs)
+- [shadcn/ui 文档](https://ui.shadcn.com/)
 
 ## 许可证
 

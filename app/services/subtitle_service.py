@@ -10,10 +10,12 @@ import json
 from app.schemas.subtitle import SubtitleRequest
 from app.services.task_manager import get_task_manager
 from app.core.asr.asr_data import ASRData
-from app.core.entities import SubtitleConfig as CoreSubtitleConfig
+from app.core.entities import (
+    SubtitleConfig as CoreSubtitleConfig,
+    TranslatorServiceEnum,
+)
 from app.core.analyze.japanese_analyzer import JapaneseAnalyzer
 from app.core.split.split import SubtitleSplitter
-from app.core.optimize.optimize import SubtitleOptimizer
 from app.core.translate import (
     BingTranslator,
     DeepLXTranslator,
@@ -45,7 +47,7 @@ class SubtitleService:
         """获取缓存文件路径
 
         Args:
-            step: 步骤名称（split, optimize, analyze_japanese, translate）
+            step: 步骤名称（split, analyze_japanese, translate）
             subtitle_path: 字幕文件路径
             config: 配置对象
 
@@ -63,13 +65,6 @@ class SubtitleService:
                 f"cjk{config.max_word_count_cjk}",
                 f"en{config.max_word_count_english}",
                 config.llm_model or "default",
-            ]
-        elif step == "optimize":
-            config_parts = [
-                config.llm_model or "default",
-                config.custom_prompt_text[:20]
-                if config.custom_prompt_text
-                else "default",
             ]
         elif step == "analyze_japanese":
             config_parts = [
@@ -565,11 +560,9 @@ class SubtitleService:
 
     def _need_llm(self, config, asr_data):
         """判断是否需要 LLM"""
-        from app.core.entities import TranslatorServiceEnum
 
         return (
-            config.need_optimize
-            or asr_data.is_word_timestamp()
+            asr_data.is_word_timestamp()
             or config.need_analyze_japanese
             or (
                 config.need_translate
@@ -628,18 +621,6 @@ class SubtitleService:
             )
         else:
             raise ValueError(f"不支持的翻译服务: {config.translator_service}")
-
-    def _optimize_callback(
-        self, result, task_id: str, subtitle_length: int, finished_subtitle_length: list
-    ):
-        """优化进度回调函数"""
-        finished_subtitle_length[0] += len(result)
-        progress = min(int((finished_subtitle_length[0] / subtitle_length) * 100), 100)
-        self.task_manager.update_task(
-            task_id,
-            progress=30 + int(progress * 0.2),
-            message=f"优化进度: {progress}%",
-        )
 
     def _translate_callback(
         self, result, task_id: str, subtitle_length: int, finished_subtitle_length: list

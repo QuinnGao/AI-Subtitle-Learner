@@ -1,6 +1,6 @@
-# Video Subtitle Frontend
+# AI Subtitle Learner Frontend
 
-基于 Next.js、Tailwind CSS、shadcn/ui 和 i18next 的视频字幕处理前端应用。
+基于 Next.js、Tailwind CSS、shadcn/ui 和 i18next 的AI字幕学习前端应用。
 
 ## 功能特性
 
@@ -18,6 +18,8 @@
 - **shadcn/ui** - UI 组件库
 - **i18next** - 国际化
 - **TypeScript** - 类型安全
+- **ESLint** - 代码检查
+- **Prettier** - 代码格式化
 
 ## 安装
 
@@ -52,6 +54,48 @@ npm run dev
 npm run build
 npm start
 ```
+
+## 代码质量
+
+### Linting
+
+检查代码问题：
+
+```bash
+npm run lint
+```
+
+自动修复可修复的问题：
+
+```bash
+npm run lint:fix
+```
+
+### 代码格式化
+
+格式化所有代码文件：
+
+```bash
+npm run format
+```
+
+检查代码格式（不修改文件）：
+
+```bash
+npm run format:check
+```
+
+### 配置说明
+
+- **ESLint**: 使用 Next.js 推荐的配置，并集成了 Prettier
+- **Prettier**: 配置了 Tailwind CSS 插件，自动排序 Tailwind 类名
+- **EditorConfig**: 统一编辑器配置，确保团队代码风格一致
+
+配置文件：
+- `.eslintrc.json` - ESLint 配置
+- `.prettierrc.json` - Prettier 配置
+- `.prettierignore` - Prettier 忽略文件
+- `.editorconfig` - EditorConfig 配置
 
 ## 使用说明
 

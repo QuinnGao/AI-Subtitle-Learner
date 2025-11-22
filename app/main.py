@@ -9,11 +9,8 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.routers import (
     health,
-    transcribe,
     subtitle,
-    synthesis,
     video,
-    batch,
 )
 from app.core.llm.health_check import get_health_checker, _global_health_checker
 from app.core.utils.logger import setup_logger
@@ -42,8 +39,8 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(
-    title="视频字幕处理 API",
-    description="基于 FastAPI 的视频字幕处理后端服务",
+    title="AI Subtitle Learner API",
+    description="AI-powered subtitle learning system backend service",
     version="1.0.0",
     lifespan=lifespan,
 )
@@ -59,18 +56,15 @@ app.add_middleware(
 
 # 注册路由
 app.include_router(health.router, tags=["健康检查"])
-app.include_router(transcribe.router, prefix="/api/v1", tags=["转录"])
 app.include_router(subtitle.router, prefix="/api/v1", tags=["字幕处理"])
-app.include_router(synthesis.router, prefix="/api/v1", tags=["视频合成"])
 app.include_router(video.router, prefix="/api/v1", tags=["视频"])
-app.include_router(batch.router, prefix="/api/v1", tags=["批量处理"])
 
 
 @app.get("/")
 async def root():
     """根路径"""
     return {
-        "message": "视频字幕处理 API",
+        "message": "AI Subtitle Learner API",
         "version": "1.0.0",
         "docs": "/docs",
     }
