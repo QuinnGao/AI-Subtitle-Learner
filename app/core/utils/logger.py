@@ -66,7 +66,11 @@ def setup_logger(
             try:
                 time_str = record["time"].strftime("%Y-%m-%d %H:%M:%S")
                 # 获取消息并转义 HTML 标签，避免 loguru 误解析
-                message = str(record.get("message", "")).replace("<", "&lt;").replace(">", "&gt;")
+                message = (
+                    str(record.get("message", ""))
+                    .replace("<", "&lt;")
+                    .replace(">", "&gt;")
+                )
                 # 只显示时间和消息，错误级别才显示级别
                 if record["level"].name in ["ERROR", "CRITICAL", "WARNING"]:
                     level_name = record["level"].name
@@ -89,7 +93,6 @@ def setup_logger(
 
         # 添加控制台输出
         if console_output:
-
             logger.add(
                 sys.stderr,
                 format=format_console,
