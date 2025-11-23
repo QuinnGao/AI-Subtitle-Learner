@@ -5,6 +5,11 @@ pydantic>=2.5.0
 pydantic-settings>=2.1.0
 python-multipart>=0.0.6
 
+# FastAPI 性能优化插件
+uvloop>=0.19.0  # 高性能事件循环（比 asyncio 快 2-4 倍）
+orjson>=3.9.10  # 快速的 JSON 序列化（比标准 json 快 2-3 倍）
+httptools>=0.6.1  # 快速的 HTTP 解析器
+
 # HTTP 客户端
 httpx>=0.25.0
 requests>=2.31.0

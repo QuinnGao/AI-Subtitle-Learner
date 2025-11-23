@@ -6,6 +6,7 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import ORJSONResponse
 
 from app.routers import (
     health,
@@ -43,6 +44,7 @@ app = FastAPI(
     description="AI-powered subtitle learning system backend service",
     version="1.0.0",
     lifespan=lifespan,
+    default_response_class=ORJSONResponse,  # 使用 orjson 提升 JSON 序列化性能
 )
 
 # 配置 CORS
