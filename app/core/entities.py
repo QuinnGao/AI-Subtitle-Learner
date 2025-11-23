@@ -48,11 +48,16 @@ class TranscribeModelEnum(Enum):
 
 
 class TranslatorServiceEnum(Enum):
-    """翻译器服务"""
+    """翻译器服务
+
+    目前仅支持 LLM (OPENAI) 翻译服务。
+    TODO: 后续添加其他翻译服务支持（Bing、Google 等）
+    """
 
     OPENAI = "LLM 大模型翻译"
-    BING = "微软翻译"
-    GOOGLE = "谷歌翻译"
+    # TODO: 后续添加其他翻译服务支持
+    # BING = "微软翻译"
+    # GOOGLE = "谷歌翻译"
 
 
 class VadMethodEnum(Enum):

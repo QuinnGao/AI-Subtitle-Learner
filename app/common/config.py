@@ -114,10 +114,11 @@ class Config:
     )
 
     # ------------------- 翻译配置 -------------------
+    # TODO: 目前仅支持 LLM (OPENAI) 翻译服务，后续添加其他翻译服务支持
     translator_service = OptionsConfigItem(
         "Translate",
         "TranslatorServiceEnum",
-        TranslatorServiceEnum.BING,
+        TranslatorServiceEnum.OPENAI,
     )
     need_reflect_translate = ConfigItem("Translate", "NeedReflectTranslate", False)
     batch_size = RangeConfigItem("Translate", "BatchSize", 5)

@@ -3,7 +3,6 @@
 """
 
 import uuid
-import sys
 from datetime import datetime
 from typing import Optional
 
@@ -182,7 +181,6 @@ class TaskManager:
             logger.info("-" * 80)
 
         logger.info("=" * 80)
-        sys.stderr.flush()
 
     def delete_task(self, task_id: str):
         """删除任务"""

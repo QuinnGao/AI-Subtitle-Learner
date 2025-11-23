@@ -5,7 +5,6 @@
 import asyncio
 import os
 import re
-import sys
 from pathlib import Path
 from typing import Optional
 
@@ -153,7 +152,6 @@ class VideoDownloadService:
                 self.task_manager.update_task(
                     task_id, progress=progress, message=message
                 )
-                sys.stderr.flush()  # 确保日志立即输出
             except (ValueError, TypeError):
                 pass
 
@@ -165,7 +163,6 @@ class VideoDownloadService:
     ):
         """下载音频任务"""
         logger.info(f"[任务 {task_id}] 开始下载音频: {url}")
-        sys.stderr.flush()
 
         try:
             self.task_manager.update_task(
@@ -204,7 +201,6 @@ class VideoDownloadService:
 
             # 在线程池中执行同步阻塞操作，避免阻塞事件循环
             logger.info(f"[任务 {task_id}] 在线程池中执行音频下载...")
-            sys.stderr.flush()
             download_result = await asyncio.to_thread(
                 self._download_video_sync,
                 task_id,
@@ -216,7 +212,6 @@ class VideoDownloadService:
             video_file_path = download_result["video_file_path"]
 
             logger.info(f"[任务 {task_id}] 音频下载完成: {video_file_path}")
-            sys.stderr.flush()
 
             # 更新任务状态为运行中（等待转录任务完成）
             self.task_manager.update_task(
@@ -234,7 +229,6 @@ class VideoDownloadService:
                     logger.info(
                         f"[任务 {task_id}] 开始使用 WhisperX 进行转录，获取精准时间戳"
                     )
-                    sys.stderr.flush()
 
                     # 创建转录任务
                     transcribe_task_id = self.task_manager.create_task()
@@ -258,7 +252,6 @@ class VideoDownloadService:
                         f"[任务 {task_id}] 创建转录任务关联: "
                         f"video_task_id={task_id}, transcribe_task_id={transcribe_task_id}"
                     )
-                    sys.stderr.flush()
 
                     # 更新音频下载任务消息，包含转录任务ID
                     task = self.task_manager.get_task(task_id)
@@ -294,13 +287,11 @@ class VideoDownloadService:
                     logger.info(
                         f"[任务 {task_id}] WhisperX 转录任务已创建: {transcribe_task_id}"
                     )
-                    sys.stderr.flush()
                 except Exception as e:
                     logger.error(
                         f"[任务 {task_id}] 创建 WhisperX 转录任务失败: {str(e)}",
                         exc_info=True,
                     )
-                    sys.stderr.flush()
                     # 转录任务创建失败，标记音频下载任务为失败
                     self.task_manager.update_task(
                         task_id,
@@ -318,13 +309,11 @@ class VideoDownloadService:
                     error="音频文件下载失败",
                 )
                 logger.error(f"[任务 {task_id}] 音频文件不存在: {video_file_path}")
-                sys.stderr.flush()
                 return
 
         except Exception as e:
             error_msg = str(e)
             logger.error(f"[任务 {task_id}] 音频下载失败: {error_msg}", exc_info=True)
-            sys.stderr.flush()
             self.task_manager.update_task(
                 task_id,
                 status=TaskStatus.FAILED,
@@ -344,7 +333,6 @@ class VideoDownloadService:
             logger.info(
                 f"[任务 {task_id}] 开始执行 WhisperX 转录任务: {transcribe_task_id}"
             )
-            sys.stderr.flush()
 
             await self.transcribe_service.process_transcribe_task(
                 transcribe_task_id, transcribe_request
@@ -362,14 +350,12 @@ class VideoDownloadService:
                     logger.error(
                         f"[任务 {task_id}] 转录任务不存在: {transcribe_task_id}"
                     )
-                    sys.stderr.flush()
                     return
 
                 # 检查任务状态
                 if transcribe_task.status == TaskStatus.FAILED:
                     error_msg = transcribe_task.error or "转录失败"
                     logger.error(f"[任务 {task_id}] WhisperX 转录失败: {error_msg}")
-                    sys.stderr.flush()
                     # 转录失败，标记音频下载任务为失败
                     self.task_manager.update_task(
                         task_id,
@@ -390,13 +376,11 @@ class VideoDownloadService:
                         logger.error(
                             f"[任务 {task_id}] 转录输出文件不存在: {subtitle_file_path}"
                         )
-                        sys.stderr.flush()
                         return
 
                     logger.info(
                         f"[任务 {task_id}] WhisperX 转录完成: {subtitle_file_path}"
                     )
-                    sys.stderr.flush()
                     break
 
                 # 如果任务还在运行或等待中，继续等待
@@ -412,13 +396,11 @@ class VideoDownloadService:
                     f"output_path={transcribe_task.output_path}, "
                     f"message={transcribe_task.message}"
                 )
-                sys.stderr.flush()
                 return
 
             # 检查是否超时
             if elapsed_time >= max_wait_time:
                 logger.error(f"[任务 {task_id}] 转录任务超时: {transcribe_task_id}")
-                sys.stderr.flush()
                 # 转录超时，标记音频下载任务为失败
                 self.task_manager.update_task(
                     task_id,
@@ -442,7 +424,6 @@ class VideoDownloadService:
                     f"status={transcribe_task.status if transcribe_task else 'None'}, "
                     f"output_path={transcribe_task.output_path if transcribe_task else 'None'}"
                 )
-                sys.stderr.flush()
                 # 无法获取转录结果，标记音频下载任务为失败
                 self.task_manager.update_task(
                     task_id,
@@ -454,7 +435,6 @@ class VideoDownloadService:
 
             # 转录任务完成，创建字幕处理任务（AI优化、翻译等）
             logger.info(f"[任务 {task_id}] 转录任务完成，开始创建字幕处理任务")
-            sys.stderr.flush()
 
             subtitle_file_path = transcribe_task.output_path
 
@@ -479,7 +459,6 @@ class VideoDownloadService:
             logger.info(
                 f"[任务 {task_id}] 创建字幕处理任务: subtitle_task_id={subtitle_task_id}"
             )
-            sys.stderr.flush()
 
             # 更新音频下载任务消息，包含字幕任务ID
             audio_task = self.task_manager.get_task(task_id)
@@ -510,13 +489,11 @@ class VideoDownloadService:
             )
 
             logger.info(f"[任务 {task_id}] 字幕处理任务已创建: {subtitle_task_id}")
-            sys.stderr.flush()
         except Exception as e:
             logger.error(
                 f"[任务 {task_id}] 转录处理失败: {str(e)}",
                 exc_info=True,
             )
-            sys.stderr.flush()
             # 转录失败，标记音频下载任务为失败
             self.task_manager.update_task(
                 task_id,
@@ -535,7 +512,6 @@ class VideoDownloadService:
         try:
             # 执行字幕处理
             logger.info(f"[任务 {task_id}] 开始执行字幕处理任务: {subtitle_task_id}")
-            sys.stderr.flush()
 
             await self.subtitle_service.process_subtitle_task(
                 subtitle_task_id, subtitle_request
@@ -551,14 +527,12 @@ class VideoDownloadService:
 
                 if not subtitle_task:
                     logger.error(f"[任务 {task_id}] 字幕任务不存在: {subtitle_task_id}")
-                    sys.stderr.flush()
                     return
 
                 # 检查任务状态
                 if subtitle_task.status == TaskStatus.FAILED:
                     error_msg = subtitle_task.error or "字幕处理失败"
                     logger.error(f"[任务 {task_id}] 字幕处理失败: {error_msg}")
-                    sys.stderr.flush()
                     # 字幕处理失败，但转录已完成，标记音频下载任务为完成（带警告）
                     audio_task = self.task_manager.get_task(task_id)
                     audio_file_path = audio_task.output_path if audio_task else None
@@ -578,7 +552,6 @@ class VideoDownloadService:
                     logger.info(
                         f"[任务 {task_id}] 字幕处理完成: {subtitle_task.output_path}"
                     )
-                    sys.stderr.flush()
                     break
 
                 # 如果任务还在运行或等待中，继续等待
@@ -594,13 +567,11 @@ class VideoDownloadService:
                     f"output_path={subtitle_task.output_path}, "
                     f"message={subtitle_task.message}"
                 )
-                sys.stderr.flush()
                 return
 
             # 检查是否超时
             if elapsed_time >= max_wait_time:
                 logger.error(f"[任务 {task_id}] 字幕任务超时: {subtitle_task_id}")
-                sys.stderr.flush()
                 # 字幕超时，但转录已完成，标记音频下载任务为完成（带警告）
                 audio_task = self.task_manager.get_task(task_id)
                 audio_file_path = audio_task.output_path if audio_task else None
@@ -627,7 +598,6 @@ class VideoDownloadService:
                     f"status={subtitle_task.status if subtitle_task else 'None'}, "
                     f"output_path={subtitle_task.output_path if subtitle_task else 'None'}"
                 )
-                sys.stderr.flush()
                 # 无法获取字幕结果，但转录已完成，标记音频下载任务为完成（带警告）
                 audio_task = self.task_manager.get_task(task_id)
                 audio_file_path = audio_task.output_path if audio_task else None
@@ -642,7 +612,6 @@ class VideoDownloadService:
 
             # 字幕处理任务完成，标记音频下载任务为完成
             logger.info(f"[任务 {task_id}] 字幕处理任务完成，标记音频下载任务为完成")
-            sys.stderr.flush()
 
             # 获取音频文件路径
             audio_task = self.task_manager.get_task(task_id)
@@ -660,7 +629,6 @@ class VideoDownloadService:
                 f"[任务 {task_id}] 字幕处理失败: {str(e)}",
                 exc_info=True,
             )
-            sys.stderr.flush()
             # 字幕处理失败，但转录已完成，标记音频下载任务为完成（带警告）
             audio_task = self.task_manager.get_task(task_id)
             audio_file_path = audio_task.output_path if audio_task else None
@@ -679,7 +647,6 @@ class VideoDownloadService:
         with yt_dlp.YoutubeDL(initial_ydl_opts) as ydl:
             # 提取视频信息（不下载）
             logger.info(f"[任务 {task_id}] 提取视频信息...")
-            sys.stderr.flush()
             info_dict = ydl.extract_info(url, download=False)
 
             # 设置动态下载文件夹为视频标题
@@ -709,7 +676,6 @@ class VideoDownloadService:
 
             # 使用 process_info 进行下载
             logger.info(f"[任务 {task_id}] 开始下载文件...")
-            sys.stderr.flush()
             ydl.process_info(info_dict)
 
             # 获取文件路径（可能是视频或音频）

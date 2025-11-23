@@ -3,7 +3,6 @@
 """
 
 import asyncio
-import sys
 from pathlib import Path
 
 from app.schemas.transcribe import TranscribeRequest
@@ -26,28 +25,23 @@ class TranscribeService:
     async def process_transcribe_task(self, task_id: str, request: TranscribeRequest):
         """处理转录任务"""
         logger.info(f"[任务 {task_id}] 开始处理转录任务")
-        sys.stderr.flush()
 
         try:
             logger.info(f"[任务 {task_id}] 更新任务状态为 running")
             self.task_manager.update_task(
                 task_id, status=TaskStatus.RUNNING, message="开始转录"
             )
-            sys.stderr.flush()
 
             # 验证文件
             file_path = Path(request.file_path)
             logger.info(f"[任务 {task_id}] 验证文件: {file_path}")
-            sys.stderr.flush()
 
             if not file_path.exists():
                 error_msg = f"文件不存在: {file_path}"
                 logger.error(f"[任务 {task_id}] {error_msg}")
-                sys.stderr.flush()
                 raise ValueError(error_msg)
 
             logger.info(f"[任务 {task_id}] 文件验证通过: {file_path}")
-            sys.stderr.flush()
 
             # 转换配置
             logger.info(
@@ -55,26 +49,22 @@ class TranscribeService:
                 f"language={request.config.transcribe_language}, "
                 f"need_word_time_stamp={request.config.need_word_time_stamp}"
             )
-            sys.stderr.flush()
 
             core_config = self._convert_config(request.config)
             logger.info(
                 f"[任务 {task_id}] 配置转换完成: model={core_config.transcribe_model}, "
                 f"language={core_config.transcribe_language}"
             )
-            sys.stderr.flush()
 
             # 直接使用音频文件，无需转换为 WAV（ASR 支持 MP3 等格式）
             audio_path = str(file_path)
             logger.info(f"[任务 {task_id}] 直接使用音频文件: {audio_path}")
-            sys.stderr.flush()
 
             # 进行转录（在线程池中执行，避免阻塞事件循环）
             logger.info(
                 f"[任务 {task_id}] 开始转录: model={core_config.transcribe_model}, "
                 f"language={core_config.transcribe_language}"
             )
-            sys.stderr.flush()
 
             self.task_manager.update_task(task_id, progress=10, message="语音转录中")
 
@@ -88,14 +78,12 @@ class TranscribeService:
             logger.info(
                 f"[任务 {task_id}] 转录完成，共 {len(asr_data.segments)} 条字幕"
             )
-            sys.stderr.flush()
 
             # 保存字幕文件（在线程池中执行）
             output_path = request.output_path or str(
                 file_path.parent / f"{file_path.stem}.srt"
             )
             logger.info(f"[任务 {task_id}] 保存字幕文件到: {output_path}")
-            sys.stderr.flush()
 
             await asyncio.to_thread(asr_data.save, output_path)
 
@@ -107,7 +95,6 @@ class TranscribeService:
                 )
             else:
                 logger.warning(f"[任务 {task_id}] 字幕文件保存后不存在: {output_path}")
-            sys.stderr.flush()
 
             logger.info(f"[任务 {task_id}] 更新任务状态为 completed")
             self.task_manager.update_task(
@@ -117,21 +104,17 @@ class TranscribeService:
                 message="转录完成",
                 output_path=output_path,
             )
-            sys.stderr.flush()
 
             logger.info(f"[任务 {task_id}] 转录任务完成: {output_path}")
-            sys.stderr.flush()
 
         except Exception as e:
             error_msg = str(e)
             logger.error(f"[任务 {task_id}] 转录任务失败: {error_msg}", exc_info=True)
-            sys.stderr.flush()
 
             self.task_manager.update_task(
                 task_id, status=TaskStatus.FAILED, error=error_msg, message="转录失败"
             )
             logger.error(f"[任务 {task_id}] 任务状态已更新为 failed")
-            sys.stderr.flush()
 
     def _convert_config(self, config) -> CoreTranscribeConfig:
         """转换配置格式"""

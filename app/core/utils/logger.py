@@ -4,11 +4,39 @@
 
 import sys
 from pathlib import Path
-from typing import Optional
+from typing import Optional, TextIO
 
 from loguru import logger
 
 from ...config import LOG_LEVEL, LOG_PATH
+
+
+class AutoFlushStream:
+    """自动刷新的流包装器，确保日志立即输出
+    
+    这个类包装了 sys.stderr，在每次写入时自动刷新，
+    避免在代码中频繁调用 sys.stderr.flush()
+    """
+
+    def __init__(self, stream: TextIO):
+        self.stream = stream
+
+    def write(self, message: str) -> int:
+        """写入消息并自动刷新"""
+        result = self.stream.write(message)
+        self.stream.flush()
+        return result
+
+    def flush(self) -> None:
+        """刷新流"""
+        self.stream.flush()
+
+    def __getattr__(self, name: str):
+        """代理其他属性和方法到原始流
+        
+        这确保 loguru 可以访问流的所有属性（如 isatty, fileno 等）
+        """
+        return getattr(self.stream, name)
 
 
 def _get_log_level(level: str) -> str:
@@ -93,8 +121,11 @@ def setup_logger(
 
         # 添加控制台输出
         if console_output:
+            # 使用自动刷新的流包装器，确保日志立即输出
+            # 这样就不需要在代码中频繁调用 sys.stderr.flush()
+            auto_flush_stderr = AutoFlushStream(sys.stderr)
             logger.add(
-                sys.stderr,
+                auto_flush_stderr,
                 format=format_console,
                 level=log_level,
                 colorize=True,

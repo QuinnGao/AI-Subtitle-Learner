@@ -34,11 +34,16 @@ def _get_default_max_word_count_english() -> int:
 
 
 class TranslatorService(str, Enum):
-    """翻译器服务"""
+    """翻译器服务
+
+    目前仅支持 LLM (OPENAI) 翻译服务。
+    TODO: 后续添加其他翻译服务支持（Bing、Google 等）
+    """
 
     OPENAI = "openai"
-    BING = "bing"
-    GOOGLE = "google"
+    # TODO: 后续添加其他翻译服务支持
+    # BING = "bing"
+    # GOOGLE = "google"
 
 
 class SubtitleLayout(str, Enum):
@@ -163,6 +168,8 @@ class DictionaryQueryResponse(BaseModel):
     word: str = Field(..., description="单词文本")
     pronunciation: DictionaryPronunciation = Field(..., description="发音信息")
     part_of_speech: str = Field(..., description="词性（中文）")
-    meanings: list[DictionaryMeaning] = Field(default_factory=list, description="释义列表")
+    meanings: list[DictionaryMeaning] = Field(
+        default_factory=list, description="释义列表"
+    )
     usage_notes: Optional[str] = Field(None, description="使用说明")
     error: Optional[str] = Field(None, description="错误信息（如果有）")

@@ -2,7 +2,6 @@
 字幕处理服务
 """
 
-import sys
 from pathlib import Path
 import json
 
@@ -11,15 +10,14 @@ from app.services.task_manager import get_task_manager
 from app.core.asr.asr_data import ASRData
 from app.core.entities import (
     SubtitleConfig as CoreSubtitleConfig,
-    TranslatorServiceEnum,
 )
 from app.core.analyze.japanese_analyzer import JapaneseAnalyzer
 from app.core.split.split import SubtitleSplitter
 from app.core.translate import (
-    BingTranslator,
-    GoogleTranslator,
     LLMTranslator,
 )
+
+# TODO: 后续添加其他翻译服务支持（Bing、Google 等）
 from app.core.llm.health_check import get_health_checker
 from app.core.utils.logger import setup_logger
 from app.config import LLM_API_BASE, LLM_API_KEY, LLM_MODEL, CACHE_PATH
@@ -141,14 +139,11 @@ class SubtitleService:
     def _validate_subtitle_file(self, task_id: str, subtitle_path: Path) -> None:
         """验证字幕文件是否存在"""
         logger.info(f"[任务 {task_id}] 验证字幕文件: {subtitle_path}")
-        sys.stderr.flush()
         if not subtitle_path.exists():
             error_msg = f"字幕文件不存在: {subtitle_path}"
             logger.error(f"[任务 {task_id}] {error_msg}")
-            sys.stderr.flush()
             raise ValueError(error_msg)
         logger.info(f"[任务 {task_id}] 字幕文件验证通过: {subtitle_path}")
-        sys.stderr.flush()
 
     def _prepare_config(self, task_id: str, config) -> CoreSubtitleConfig:
         """准备配置（使用环境变量默认值并转换）"""
@@ -451,9 +446,7 @@ class SubtitleService:
 
     async def process_subtitle_task(self, task_id: str, request: SubtitleRequest):
         """处理字幕任务"""
-        # 立即输出日志，确保在 Docker 中可见
         logger.info(f"[任务 {task_id}] 开始处理字幕任务")
-        sys.stderr.flush()  # 立即刷新输出，确保后台任务日志可见
 
         logger.debug(
             f"[任务 {task_id}] 请求参数: subtitle_path={request.subtitle_path}, "
@@ -507,7 +500,6 @@ class SubtitleService:
             )
 
             logger.info(f"[任务 {task_id}] 字幕处理完成，输出文件: {json_output_path}")
-            sys.stderr.flush()
             self.task_manager.update_task(
                 task_id,
                 status="completed",
@@ -519,7 +511,6 @@ class SubtitleService:
         except Exception as e:
             error_msg = str(e)
             logger.error(f"[任务 {task_id}] 字幕处理失败: {error_msg}", exc_info=True)
-            sys.stderr.flush()  # 确保错误日志立即输出
             self.task_manager.update_task(
                 task_id, status="failed", error=error_msg, message="字幕处理失败"
             )
@@ -557,22 +548,19 @@ class SubtitleService:
 
     def _need_llm(self, config, asr_data):
         """判断是否需要 LLM"""
-
+        # 目前翻译服务仅支持 LLM，所以如果需要翻译，就需要 LLM
         return (
             asr_data.is_word_timestamp()
             or config.need_analyze_japanese
-            or (
-                config.need_translate
-                and config.translator_service
-                not in [
-                    TranslatorServiceEnum.BING,
-                    TranslatorServiceEnum.GOOGLE,
-                ]
-            )
+            or config.need_translate
         )
 
     def _get_translator(self, config, callback=None):
-        """获取翻译器实例"""
+        """获取翻译器实例
+
+        目前仅支持 LLM 翻译服务。
+        TODO: 后续添加其他翻译服务支持（Bing、Google 等）
+        """
         from app.core.entities import TranslatorServiceEnum
 
         logger.debug(
@@ -591,23 +579,12 @@ class SubtitleService:
                 is_reflect=config.need_reflect,
                 update_callback=callback,
             )
-        elif config.translator_service == TranslatorServiceEnum.BING:
-            return BingTranslator(
-                thread_num=config.thread_num,
-                batch_num=10,
-                target_language=config.target_language,
-                update_callback=callback,
-            )
-        elif config.translator_service == TranslatorServiceEnum.GOOGLE:
-            return GoogleTranslator(
-                thread_num=config.thread_num,
-                batch_num=5,
-                target_language=config.target_language,
-                timeout=20,
-                update_callback=callback,
-            )
         else:
-            raise ValueError(f"不支持的翻译服务: {config.translator_service}")
+            # TODO: 后续添加其他翻译服务支持（Bing、Google 等）
+            raise ValueError(
+                f"不支持的翻译服务: {config.translator_service}。"
+                "目前仅支持 LLM (OPENAI) 翻译服务。"
+            )
 
     def _translate_callback(
         self, result, task_id: str, subtitle_length: int, finished_subtitle_length: list
