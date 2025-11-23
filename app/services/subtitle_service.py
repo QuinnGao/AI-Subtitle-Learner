@@ -2,7 +2,6 @@
 字幕处理服务
 """
 
-import os
 import sys
 from pathlib import Path
 import json
@@ -18,7 +17,6 @@ from app.core.analyze.japanese_analyzer import JapaneseAnalyzer
 from app.core.split.split import SubtitleSplitter
 from app.core.translate import (
     BingTranslator,
-    DeepLXTranslator,
     GoogleTranslator,
     LLMTranslator,
 )
@@ -537,7 +535,6 @@ class SubtitleService:
             base_url=config.base_url,
             api_key=config.api_key,
             llm_model=config.llm_model,
-            deeplx_endpoint=config.deeplx_endpoint,
             translator_service=TranslatorServiceEnum[
                 config.translator_service.value.upper()
             ]
@@ -568,7 +565,6 @@ class SubtitleService:
                 config.need_translate
                 and config.translator_service
                 not in [
-                    TranslatorServiceEnum.DEEPLX,
                     TranslatorServiceEnum.BING,
                     TranslatorServiceEnum.GOOGLE,
                 ]
@@ -593,15 +589,6 @@ class SubtitleService:
                 model=config.llm_model,
                 custom_prompt=config.custom_prompt_text or "",
                 is_reflect=config.need_reflect,
-                update_callback=callback,
-            )
-        elif config.translator_service == TranslatorServiceEnum.DEEPLX:
-            os.environ["DEEPLX_ENDPOINT"] = config.deeplx_endpoint or ""
-            return DeepLXTranslator(
-                thread_num=config.thread_num,
-                batch_num=5,
-                target_language=config.target_language,
-                timeout=20,
                 update_callback=callback,
             )
         elif config.translator_service == TranslatorServiceEnum.BING:

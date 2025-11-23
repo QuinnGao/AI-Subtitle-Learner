@@ -39,7 +39,7 @@ class Settings(BaseSettings):
     task_timeout: int = 3600  # 1小时
 
     # 默认配置
-    default_transcribe_model: str = "faster_whisper"
+    default_transcribe_model: str = "whisperx"
     default_transcribe_language: str = "auto"
     default_output_format: str = "srt"
 

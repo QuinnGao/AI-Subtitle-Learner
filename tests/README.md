@@ -102,7 +102,7 @@ uv run pytest tests/test_subtitle.py -v
 
 #### 功能配置测试
 - ✅ 不同的字幕布局（4种布局）
-- ✅ 不同的翻译服务（OpenAI, DeepLX, Bing, Google）
+- ✅ 不同的翻译服务（OpenAI, Bing, Google）
 - ✅ 启用优化功能
 - ✅ 启用分割功能
 - ✅ 启用反思翻译功能
@@ -125,7 +125,6 @@ uv run pytest tests/test_subtitle.py -v
 - ✅ 错误处理测试
 - ✅ 自定义输出路径
 - ✅ 提供视频路径
-- ✅ DeepLX 端点配置
 
 #### 验证测试
 - ✅ 请求参数验证

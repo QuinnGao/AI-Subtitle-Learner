@@ -74,9 +74,6 @@ OPENAI_API_BASE=your_api_base
 OPENAI_API_KEY=your_api_key
 OPENAI_MODEL=your_model
 
-# 翻译服务配置（可选）
-DEEPLX_ENDPOINT=your_deeplx_endpoint
-
 # 日志配置
 DEBUG=False
 LOG_LEVEL=INFO

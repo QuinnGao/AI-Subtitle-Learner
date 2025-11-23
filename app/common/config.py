@@ -11,16 +11,13 @@ from pathlib import Path
 
 from app.config import settings
 from app.core.entities import (
-    FasterWhisperModelEnum,
     LLMServiceEnum,
     SubtitleLayoutEnum,
     TranscribeLanguageEnum,
     TranscribeModelEnum,
     TranscribeOutputFormatEnum,
     TranslatorServiceEnum,
-    VadMethodEnum,
     VideoQualityEnum,
-    WhisperModelEnum,
 )
 from app.core.translate.types import TargetLanguage
 
@@ -123,7 +120,6 @@ class Config:
         TranslatorServiceEnum.BING,
     )
     need_reflect_translate = ConfigItem("Translate", "NeedReflectTranslate", False)
-    deeplx_endpoint = ConfigItem("Translate", "DeeplxEndpoint", "")
     batch_size = RangeConfigItem("Translate", "BatchSize", 5)
     thread_num = RangeConfigItem("Translate", "ThreadNum", 8)
 
@@ -143,47 +139,6 @@ class Config:
         "TranscribeLanguage",
         TranscribeLanguageEnum.ENGLISH,
     )
-
-    # ------------------- Whisper Cpp 配置 -------------------
-    whisper_model = OptionsConfigItem(
-        "Whisper",
-        "WhisperModel",
-        WhisperModelEnum.TINY,
-    )
-
-    # ------------------- Faster Whisper 配置 -------------------
-    faster_whisper_program = ConfigItem(
-        "FasterWhisper",
-        "Program",
-        "faster-whisper-xxl.exe",
-    )
-    faster_whisper_model = OptionsConfigItem(
-        "FasterWhisper",
-        "Model",
-        FasterWhisperModelEnum.TINY,
-    )
-    faster_whisper_model_dir = ConfigItem("FasterWhisper", "ModelDir", "")
-    faster_whisper_device = OptionsConfigItem("FasterWhisper", "Device", "cuda")
-    # VAD 参数
-    faster_whisper_vad_filter = ConfigItem("FasterWhisper", "VadFilter", True)
-    faster_whisper_vad_threshold = RangeConfigItem("FasterWhisper", "VadThreshold", 0.4)
-    faster_whisper_vad_method = OptionsConfigItem(
-        "FasterWhisper",
-        "VadMethod",
-        VadMethodEnum.SILERO_V4,
-    )
-    # 人声提取
-    faster_whisper_ff_mdx_kim2 = ConfigItem("FasterWhisper", "FfMdxKim2", False)
-    # 文本处理参数
-    faster_whisper_one_word = ConfigItem("FasterWhisper", "OneWord", True)
-    # 提示词
-    faster_whisper_prompt = ConfigItem("FasterWhisper", "Prompt", "")
-
-    # ------------------- Whisper API 配置 -------------------
-    whisper_api_base = ConfigItem("WhisperAPI", "WhisperApiBase", "")
-    whisper_api_key = ConfigItem("WhisperAPI", "WhisperApiKey", "")
-    whisper_api_model = OptionsConfigItem("WhisperAPI", "WhisperApiModel", "")
-    whisper_api_prompt = ConfigItem("WhisperAPI", "WhisperApiPrompt", "")
 
     # ------------------- 字幕配置 -------------------
     need_optimize = ConfigItem("Subtitle", "NeedOptimize", False)

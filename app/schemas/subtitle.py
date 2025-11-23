@@ -37,7 +37,6 @@ class TranslatorService(str, Enum):
     """翻译器服务"""
 
     OPENAI = "openai"
-    DEEPLX = "deeplx"
     BING = "bing"
     GOOGLE = "google"
 
@@ -58,7 +57,6 @@ class SubtitleConfig(BaseModel):
     base_url: Optional[str] = Field(None, description="LLM API Base URL")
     api_key: Optional[str] = Field(None, description="LLM API Key")
     llm_model: Optional[str] = Field(None, description="LLM 模型")
-    deeplx_endpoint: Optional[str] = Field(None, description="DeepLX 端点")
 
     # 翻译服务
     translator_service: Optional[TranslatorService] = Field(

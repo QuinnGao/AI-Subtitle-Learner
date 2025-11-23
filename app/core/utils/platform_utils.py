@@ -123,12 +123,6 @@ def get_available_transcribe_models() -> list["TranscribeModelEnum"]:
 
     all_models = list(TranscribeModelEnum)
 
-    # macOS 上过滤掉 FasterWhisper
-    if is_macos():
-        return [
-            model for model in all_models if model != TranscribeModelEnum.FASTER_WHISPER
-        ]
-
     return all_models
 
 
@@ -142,10 +136,4 @@ def is_model_available(model: "TranscribeModelEnum") -> bool:
     Returns:
         bool: 如果模型可用返回 True，否则返回 False
     """
-    from app.core.entities import TranscribeModelEnum
-
-    # FasterWhisper 在 macOS 上不可用
-    if is_macos() and model == TranscribeModelEnum.FASTER_WHISPER:
-        return False
-
     return True

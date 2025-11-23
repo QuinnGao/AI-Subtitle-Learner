@@ -9,7 +9,6 @@ class TranslatorType(Enum):
     OPENAI = "openai"
     GOOGLE = "google"
     BING = "bing"
-    DEEPLX = "deeplx"
 
 
 class TargetLanguage(Enum):
@@ -158,53 +157,13 @@ BING_LANG_MAP = {
     TargetLanguage.PERSIAN: "fa",
 }
 
-# DeepL 语言代码映射
-DEEPL_LANG_MAP = {
-    # 中文
-    TargetLanguage.SIMPLIFIED_CHINESE: "zh-Hans",
-    TargetLanguage.TRADITIONAL_CHINESE: "zh-Hant",
-    # 英语
-    TargetLanguage.ENGLISH: "en",
-    TargetLanguage.ENGLISH_US: "en-US",
-    TargetLanguage.ENGLISH_UK: "en-GB",
-    # 亚洲语言
-    TargetLanguage.JAPANESE: "ja",
-    TargetLanguage.KOREAN: "ko",
-    TargetLanguage.INDONESIAN: "id",
-    # 欧洲语言
-    TargetLanguage.FRENCH: "fr",
-    TargetLanguage.GERMAN: "de",
-    TargetLanguage.SPANISH: "es",
-    TargetLanguage.RUSSIAN: "ru",
-    TargetLanguage.PORTUGUESE: "pt",
-    TargetLanguage.PORTUGUESE_BR: "pt-BR",
-    TargetLanguage.PORTUGUESE_PT: "pt-PT",
-    TargetLanguage.ITALIAN: "it",
-    TargetLanguage.DUTCH: "nl",
-    TargetLanguage.POLISH: "pl",
-    TargetLanguage.TURKISH: "tr",
-    TargetLanguage.GREEK: "el",
-    TargetLanguage.CZECH: "cs",
-    TargetLanguage.SWEDISH: "sv",
-    TargetLanguage.DANISH: "da",
-    TargetLanguage.FINNISH: "fi",
-    TargetLanguage.NORWEGIAN: "nb",
-    TargetLanguage.HUNGARIAN: "hu",
-    TargetLanguage.ROMANIAN: "ro",
-    TargetLanguage.BULGARIAN: "bg",
-    TargetLanguage.UKRAINIAN: "uk",
-    # 中东语言
-    TargetLanguage.ARABIC: "ar",
-}
-
-
 def get_language_code(target_language: TargetLanguage, translator_type: str) -> str:
     """
     获取翻译服务对应的语言代码
 
     Args:
         target_language: 目标语言枚举
-        translator_type: 翻译器类型（google/bing/deeplx）
+        translator_type: 翻译器类型（google/bing）
 
     Returns:
         语言代码字符串
@@ -212,7 +171,6 @@ def get_language_code(target_language: TargetLanguage, translator_type: str) -> 
     lang_map = {
         "google": GOOGLE_LANG_MAP,
         "bing": BING_LANG_MAP,
-        "deeplx": DEEPL_LANG_MAP,
     }
 
     # 获取对应的语言映射

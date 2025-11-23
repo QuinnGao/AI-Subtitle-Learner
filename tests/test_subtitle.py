@@ -236,7 +236,7 @@ class TestSubtitleAPI:
 
     def test_subtitle_with_different_translator_services(self, client, sample_srt_file):
         """测试不同的翻译服务配置"""
-        services = ["openai", "deeplx", "bing", "google"]
+        services = ["openai", "bing", "google"]
 
         for service in services:
             request_data = {
@@ -605,22 +605,6 @@ class TestSubtitleAPI:
                 "need_translate": False,
                 "need_optimize": False,
                 "need_split": False,
-            },
-        }
-
-        response = client.post("/api/v1/subtitle", json=request_data)
-        assert response.status_code == status.HTTP_200_OK
-        data = response.json()
-        assert "task_id" in data
-
-    def test_subtitle_with_deeplx_endpoint(self, client, sample_srt_file):
-        """测试 DeepLX 端点配置"""
-        request_data = {
-            "subtitle_path": sample_srt_file,
-            "config": {
-                "need_translate": True,
-                "translator_service": "deeplx",
-                "deeplx_endpoint": "http://localhost:1188",
             },
         }
 

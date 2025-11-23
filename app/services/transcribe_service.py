@@ -139,9 +139,6 @@ class TranscribeService:
         # 由于 core 模块使用的是枚举类型，需要进行映射
         from app.core.entities import (
             TranscribeModelEnum,
-            WhisperModelEnum,
-            FasterWhisperModelEnum,
-            VadMethodEnum,
             TranscribeOutputFormatEnum,
         )
 
@@ -152,31 +149,6 @@ class TranscribeService:
             output_format=TranscribeOutputFormatEnum[
                 config.output_format.value.upper()
             ],
-            whisper_model=WhisperModelEnum[config.whisper_model.value.upper()]
-            if config.whisper_model
-            else None,
-            whisper_api_key=config.whisper_api_key,
-            whisper_api_base=config.whisper_api_base,
-            whisper_api_model=config.whisper_api_model,
-            whisper_api_prompt=config.whisper_api_prompt,
-            faster_whisper_program=config.faster_whisper_program,
-            faster_whisper_model=FasterWhisperModelEnum[
-                config.faster_whisper_model.value.upper()
-            ]
-            if config.faster_whisper_model
-            else None,
-            faster_whisper_model_dir=config.faster_whisper_model_dir,
-            faster_whisper_device=config.faster_whisper_device,
-            faster_whisper_vad_filter=config.faster_whisper_vad_filter,
-            faster_whisper_vad_threshold=config.faster_whisper_vad_threshold,
-            faster_whisper_vad_method=VadMethodEnum[
-                config.faster_whisper_vad_method.value.upper()
-            ]
-            if config.faster_whisper_vad_method
-            else None,
-            faster_whisper_ff_mdx_kim2=config.faster_whisper_ff_mdx_kim2,
-            faster_whisper_one_word=config.faster_whisper_one_word,
-            faster_whisper_prompt=config.faster_whisper_prompt,
             whisperx_model=config.whisperx_model,
             whisperx_device=config.whisperx_device or "cpu",  # 默认使用 CPU
             whisperx_compute_type=config.whisperx_compute_type

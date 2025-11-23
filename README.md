@@ -28,7 +28,7 @@
 - 📝 自动生成 API 文档（Swagger UI 和 ReDoc）
 - 🔒 类型提示和数据验证
 - 🎬 视频下载与转录：从 YouTube 下载音频并自动转录
-- 🌐 字幕翻译：支持多种翻译服务（OpenAI LLM、DeepLX、Bing、Google）
+- 🌐 字幕翻译：支持多种翻译服务（OpenAI LLM、Bing、Google）
 - ✂️ 字幕处理：自动分割、日语分析、翻译
 - 📚 字典查询：基于 LLM 的单词查询功能
 - 🔄 异步任务：后台任务处理，支持进度查询
@@ -189,9 +189,6 @@ LLM_MODEL=gpt-4o-mini
 OPENAI_API_BASE=https://api.openai.com/v1
 OPENAI_API_KEY=your-api-key
 OPENAI_MODEL=gpt-4o-mini
-
-# 翻译服务配置（可选）
-DEEPLX_ENDPOINT=http://localhost:1188
 ```
 
 ### 8. 提前下载 WhisperX 模型（可选但推荐）
@@ -604,9 +601,6 @@ LLM_MODEL=gpt-4o-mini
 OPENAI_API_BASE=https://api.openai.com/v1
 OPENAI_API_KEY=your-api-key-here
 OPENAI_MODEL=gpt-4o-mini
-
-# 翻译服务配置（可选）
-DEEPLX_ENDPOINT=http://localhost:1188
 ```
 
 ### 使用 Docker（单独构建）
