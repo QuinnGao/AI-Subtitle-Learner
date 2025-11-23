@@ -64,3 +64,10 @@ resources/
 huggine_face
 huggine_face.pub
 
+# Node.js / Next.js
+node_modules/
+.next/
+.npm
+.yarn
+.pnpm-store
+
