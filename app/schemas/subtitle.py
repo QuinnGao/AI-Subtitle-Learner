@@ -99,11 +99,12 @@ class SubtitleConfig(BaseModel):
 
 
 class SubtitleRequest(BaseModel):
-    """字幕处理请求"""
+    """字幕处理请求
+    
+    注意：subtitle_path 和 video_path 已移除，现在统一从数据库获取文件路径
+    """
 
-    subtitle_path: str = Field(..., description="字幕文件路径")
-    video_path: Optional[str] = Field(None, description="视频文件路径（可选）")
-    output_path: Optional[str] = Field(None, description="输出文件路径（可选）")
+    output_path: Optional[str] = Field(None, description="输出文件路径（可选，MinIO 路径）")
     config: SubtitleConfig = Field(
         default_factory=SubtitleConfig, description="字幕处理配置"
     )

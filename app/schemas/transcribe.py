@@ -57,10 +57,12 @@ class TranscribeConfig(BaseModel):
 
 
 class TranscribeRequest(BaseModel):
-    """转录请求"""
+    """转录请求
+    
+    注意：file_path 已移除，现在统一从数据库获取文件路径
+    """
 
-    file_path: str = Field(..., description="视频/音频文件路径")
-    output_path: Optional[str] = Field(None, description="输出文件路径（可选）")
+    output_path: Optional[str] = Field(None, description="输出文件路径（可选，MinIO 路径）")
     config: TranscribeConfig = Field(
         default_factory=TranscribeConfig, description="转录配置"
     )

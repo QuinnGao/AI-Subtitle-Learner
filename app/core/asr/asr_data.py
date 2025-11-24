@@ -3,6 +3,7 @@ import math
 import os
 import platform
 import re
+import tempfile
 from pathlib import Path
 from re import Match
 from typing import Dict, List, Optional, Tuple
@@ -11,6 +12,7 @@ from langdetect import LangDetectException, detect
 
 from ..entities import SubtitleLayoutEnum
 from ..utils.text_utils import is_mainly_cjk
+from ..storage import get_storage
 
 # 多语言分词模式(支持词级和字符级语言)
 _WORD_SPLIT_PATTERN = (
@@ -233,28 +235,60 @@ class ASRData:
         save_path: str,
         ass_style: Optional[str] = None,
         layout: SubtitleLayoutEnum = SubtitleLayoutEnum.ORIGINAL_ON_TOP,
-    ) -> None:
+        use_minio: bool = True,
+    ) -> str:
         """Save ASRData to file in specified format.
 
         Args:
-            save_path: Output file path
+            save_path: Output file path (local path or MinIO object name)
             ass_style: ASS style string (optional, uses default if None)
             layout: Subtitle layout mode
+            use_minio: Whether to upload to MinIO after saving locally
+
+        Returns:
+            Final file path or MinIO object name
         """
         save_path = handle_long_path(save_path)
-        Path(save_path).parent.mkdir(parents=True, exist_ok=True)
 
-        if save_path.endswith(".srt"):
-            self.to_srt(save_path=save_path, layout=layout)
-        elif save_path.endswith(".txt"):
-            self.to_txt(save_path=save_path, layout=layout)
-        elif save_path.endswith(".json"):
-            with open(save_path, "w", encoding="utf-8") as f:
-                json.dump(self.to_json(), f, ensure_ascii=False, indent=2)
-        elif save_path.endswith(".ass"):
-            self.to_ass(save_path=save_path, style_str=ass_style, layout=layout)
-        else:
-            raise ValueError(f"Unsupported file extension: {save_path}")
+        # 创建临时文件用于保存
+        with tempfile.NamedTemporaryFile(
+            mode="w", encoding="utf-8", delete=False, suffix=Path(save_path).suffix
+        ) as tmp_file:
+            tmp_path = tmp_file.name
+
+        try:
+            # 保存到临时文件
+            if save_path.endswith(".srt"):
+                self.to_srt(save_path=tmp_path, layout=layout)
+            elif save_path.endswith(".txt"):
+                self.to_txt(save_path=tmp_path, layout=layout)
+            elif save_path.endswith(".json"):
+                with open(tmp_path, "w", encoding="utf-8") as f:
+                    json.dump(self.to_json(), f, ensure_ascii=False, indent=2)
+            elif save_path.endswith(".ass"):
+                self.to_ass(save_path=tmp_path, style_str=ass_style, layout=layout)
+            else:
+                raise ValueError(f"Unsupported file extension: {save_path}")
+
+            # 如果启用 MinIO，上传到 MinIO
+            if use_minio:
+                storage = get_storage()
+                # 使用原始 save_path 作为对象名称（标准化路径）
+                object_name = str(Path(save_path)).replace("\\", "/").lstrip("/")
+                storage.upload_file(tmp_path, object_name=object_name)
+                # 清理临时文件
+                Path(tmp_path).unlink(missing_ok=True)
+                return object_name
+            else:
+                # 不使用 MinIO，直接保存到本地路径
+                Path(save_path).parent.mkdir(parents=True, exist_ok=True)
+                Path(tmp_path).rename(save_path)
+                return save_path
+
+        except Exception as e:
+            # 清理临时文件
+            Path(tmp_path).unlink(missing_ok=True)
+            raise
 
     def to_txt(
         self,

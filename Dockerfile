@@ -23,12 +23,19 @@ COPY . .
 # 创建必要的目录
 RUN mkdir -p /app/workspace /app/models /app/logs
 
+# 创建非 root 用户（可选，提高安全性）
+RUN useradd -m -u 1000 appuser && \
+    chown -R appuser:appuser /app
+
 # 设置环境变量
 ENV PYTHONUNBUFFERED=1
 ENV PYTHONPATH=/app
 
 # 暴露端口
 EXPOSE 8000
+
+# 切换到非 root 用户（如果使用 C_FORCE_ROOT=true，可以注释掉这行）
+# USER appuser
 
 # 启动命令
 CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]

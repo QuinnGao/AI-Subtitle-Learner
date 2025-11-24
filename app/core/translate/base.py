@@ -112,8 +112,10 @@ class BaseTranslator(ABC):
         """安全的翻译块"""
         try:
             cache_key = self._get_cache_key(chunk)
-            cached_result = self._cache.get(cache_key, default=None)
-            if cached_result is not None:
+            cached_result_bytes = self._cache.get(cache_key)
+            if cached_result_bytes is not None:
+                import pickle
+                cached_result = pickle.loads(cached_result_bytes)
                 return cached_result
 
             result = self._translate_chunk(chunk)
@@ -121,7 +123,9 @@ class BaseTranslator(ABC):
             if self.update_callback:
                 self.update_callback(result)
 
-            self._cache.set(cache_key, result, expire=86400 * 7)
+            import pickle
+            result_bytes = pickle.dumps(result)
+            self._cache.setex(cache_key, 86400 * 7, result_bytes)
             return result
 
         except Exception as e:

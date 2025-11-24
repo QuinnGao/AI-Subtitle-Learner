@@ -12,12 +12,13 @@ import yt_dlp
 
 from app.config import settings
 from app.services.task_manager import get_task_manager
-from app.services.transcribe_service import TranscribeService
-from app.services.subtitle_service import SubtitleService
+from app.tasks.transcribe_tasks import transcribe_task
+from app.tasks.subtitle_tasks import subtitle_task
 from app.schemas.transcribe import TranscribeRequest, TranscribeConfig, TranscribeModel
 from app.schemas.subtitle import SubtitleRequest, SubtitleConfig
 from app.core.constants import TaskStatus
 from app.core.utils.logger import setup_logger
+from app.core.storage import get_storage
 
 task_manager = get_task_manager()
 logger = setup_logger("video_download_service")
@@ -28,8 +29,6 @@ class VideoDownloadService:
 
     def __init__(self):
         self.task_manager = task_manager
-        self.transcribe_service = TranscribeService()
-        self.subtitle_service = SubtitleService()
 
     def sanitize_filename(self, name: str, replacement: str = "_") -> str:
         """清理文件名中不允许的字符"""
@@ -213,13 +212,35 @@ class VideoDownloadService:
 
             logger.info(f"[任务 {task_id}] 音频下载完成: {video_file_path}")
 
+            # 上传音频文件到 MinIO
+            if video_file_path and Path(video_file_path).exists():
+                try:
+                    storage = get_storage()
+                    # 生成 MinIO 对象名称（使用相对路径）
+                    object_name = (
+                        str(Path(video_file_path)).replace("\\", "/").lstrip("/")
+                    )
+                    storage.upload_file(video_file_path, object_name=object_name)
+                    minio_path = object_name
+                    logger.info(
+                        f"[任务 {task_id}] 音频文件已上传到 MinIO: {minio_path}"
+                    )
+                except Exception as e:
+                    logger.error(
+                        f"[任务 {task_id}] 上传音频文件到 MinIO 失败: {str(e)}",
+                        exc_info=True,
+                    )
+                    minio_path = video_file_path  # 失败时使用本地路径
+            else:
+                minio_path = video_file_path
+
             # 更新任务状态为运行中（等待转录任务完成）
             self.task_manager.update_task(
                 task_id,
                 status=TaskStatus.RUNNING,
                 progress=50,
                 message="音频下载完成，等待转录...",
-                output_path=video_file_path,
+                output_path=minio_path,  # 存储 MinIO 路径
             )
 
             # 使用 WhisperX 进行转录，获取精准时间戳
@@ -231,7 +252,9 @@ class VideoDownloadService:
                     )
 
                     # 创建转录任务
-                    transcribe_task_id = self.task_manager.create_task()
+                    transcribe_task_id = self.task_manager.create_task(
+                        task_type="transcribe",
+                    )
 
                     # 批量绑定关联关系：音频下载任务 -> 转录任务
                     self.task_manager.set_task_relations(
@@ -254,9 +277,10 @@ class VideoDownloadService:
                     )
 
                     # 更新音频下载任务消息，包含转录任务ID
-                    task = self.task_manager.get_task(task_id)
-                    if task:
-                        task.message = f"音频下载完成，等待转录...|{transcribe_task_id}||{video_file_path or ''}"
+                    self.task_manager.update_task(
+                        task_id,
+                        message=f"音频下载完成，等待转录...|{transcribe_task_id}||{video_file_path or ''}",
+                    )
 
                     # 创建转录请求，使用 WhisperX（默认使用 CPU）
                     transcribe_config = TranscribeConfig(
@@ -270,22 +294,18 @@ class VideoDownloadService:
                     )
 
                     transcribe_request = TranscribeRequest(
-                        file_path=video_file_path,
-                        output_path=None,  # 自动生成输出路径
+                        output_path=None,  # 自动生成输出路径（MinIO 路径）
                         config=transcribe_config,
                     )
 
-                    # 在后台执行转录任务（FastAPI 环境下总是有事件循环）
-                    asyncio.create_task(
-                        self._process_transcribe_task(
-                            task_id,
-                            transcribe_task_id,
-                            transcribe_request,
-                        )
+                    # 发送 Celery 任务到队列
+                    transcribe_task.delay(
+                        transcribe_task_id,
+                        transcribe_request.model_dump(),  # 转换为字典
                     )
 
                     logger.info(
-                        f"[任务 {task_id}] WhisperX 转录任务已创建: {transcribe_task_id}"
+                        f"[任务 {task_id}] WhisperX 转录任务已发送到 Celery 队列: {transcribe_task_id}"
                     )
                 except Exception as e:
                     logger.error(
@@ -319,325 +339,6 @@ class VideoDownloadService:
                 status=TaskStatus.FAILED,
                 error=error_msg,
                 message="音频下载失败",
-            )
-
-    async def _process_transcribe_task(
-        self,
-        task_id: str,
-        transcribe_task_id: str,
-        transcribe_request: TranscribeRequest,
-    ):
-        """处理转录任务"""
-        try:
-            # 1. 执行转录
-            logger.info(
-                f"[任务 {task_id}] 开始执行 WhisperX 转录任务: {transcribe_task_id}"
-            )
-
-            await self.transcribe_service.process_transcribe_task(
-                transcribe_task_id, transcribe_request
-            )
-
-            # 轮询等待任务完成
-            max_wait_time = 3600  # 最多等待1小时
-            poll_interval = 0.5  # 每0.5秒检查一次
-            elapsed_time = 0
-
-            while elapsed_time < max_wait_time:
-                transcribe_task = self.task_manager.get_task(transcribe_task_id)
-
-                if not transcribe_task:
-                    logger.error(
-                        f"[任务 {task_id}] 转录任务不存在: {transcribe_task_id}"
-                    )
-                    return
-
-                # 检查任务状态
-                if transcribe_task.status == TaskStatus.FAILED:
-                    error_msg = transcribe_task.error or "转录失败"
-                    logger.error(f"[任务 {task_id}] WhisperX 转录失败: {error_msg}")
-                    # 转录失败，标记音频下载任务为失败
-                    self.task_manager.update_task(
-                        task_id,
-                        status=TaskStatus.FAILED,
-                        error=f"转录失败: {error_msg}",
-                        message="音频下载完成，但转录失败",
-                    )
-                    return
-
-                if (
-                    transcribe_task.status == TaskStatus.COMPLETED
-                    and transcribe_task.output_path
-                ):
-                    subtitle_file_path = transcribe_task.output_path
-
-                    # 验证文件是否存在
-                    if not Path(subtitle_file_path).exists():
-                        logger.error(
-                            f"[任务 {task_id}] 转录输出文件不存在: {subtitle_file_path}"
-                        )
-                        return
-
-                    logger.info(
-                        f"[任务 {task_id}] WhisperX 转录完成: {subtitle_file_path}"
-                    )
-                    break
-
-                # 如果任务还在运行或等待中，继续等待
-                if transcribe_task.status in [TaskStatus.PENDING, TaskStatus.RUNNING]:
-                    await asyncio.sleep(poll_interval)
-                    elapsed_time += poll_interval
-                    continue
-
-                # 其他状态，记录警告并退出
-                logger.warning(
-                    f"[任务 {task_id}] 转录任务状态异常: "
-                    f"status={transcribe_task.status}, "
-                    f"output_path={transcribe_task.output_path}, "
-                    f"message={transcribe_task.message}"
-                )
-                return
-
-            # 检查是否超时
-            if elapsed_time >= max_wait_time:
-                logger.error(f"[任务 {task_id}] 转录任务超时: {transcribe_task_id}")
-                # 转录超时，标记音频下载任务为失败
-                self.task_manager.update_task(
-                    task_id,
-                    status=TaskStatus.FAILED,
-                    error="转录任务超时",
-                    message="音频下载完成，但转录超时",
-                )
-                return
-
-            # 再次获取任务，确保获取到最终结果
-            transcribe_task = self.task_manager.get_task(transcribe_task_id)
-
-            if (
-                not transcribe_task
-                or transcribe_task.status != TaskStatus.COMPLETED
-                or not transcribe_task.output_path
-            ):
-                logger.error(
-                    f"[任务 {task_id}] 无法获取转录结果: "
-                    f"task_exists={transcribe_task is not None}, "
-                    f"status={transcribe_task.status if transcribe_task else 'None'}, "
-                    f"output_path={transcribe_task.output_path if transcribe_task else 'None'}"
-                )
-                # 无法获取转录结果，标记音频下载任务为失败
-                self.task_manager.update_task(
-                    task_id,
-                    status=TaskStatus.FAILED,
-                    error="无法获取转录结果",
-                    message="音频下载完成，但无法获取转录结果",
-                )
-                return
-
-            # 转录任务完成，创建字幕处理任务（AI优化、翻译等）
-            logger.info(f"[任务 {task_id}] 转录任务完成，开始创建字幕处理任务")
-
-            subtitle_file_path = transcribe_task.output_path
-
-            # 创建字幕处理任务
-            subtitle_task_id = self.task_manager.create_task()
-
-            # 建立任务关联关系
-            self.task_manager.set_task_relations(
-                task_id,
-                {
-                    "subtitle_task_id": subtitle_task_id,
-                },
-            )
-            self.task_manager.set_task_relations(
-                subtitle_task_id,
-                {
-                    "video_task_id": task_id,
-                    "transcribe_task_id": transcribe_task_id,
-                },
-            )
-
-            logger.info(
-                f"[任务 {task_id}] 创建字幕处理任务: subtitle_task_id={subtitle_task_id}"
-            )
-
-            # 更新音频下载任务消息，包含字幕任务ID
-            audio_task = self.task_manager.get_task(task_id)
-            if audio_task:
-                audio_task.message = f"音频下载和转录完成，等待字幕处理...|{transcribe_task_id}|{subtitle_task_id}||{audio_task.output_path or ''}"
-
-            # 创建字幕处理请求（默认启用优化和分割，不启用翻译）
-            subtitle_config = SubtitleConfig(
-                need_optimize=True,  # 启用AI优化
-                need_translate=True,  # 不启用翻译
-                need_split=True,  # 启用分割
-            )
-
-            subtitle_request = SubtitleRequest(
-                subtitle_path=subtitle_file_path,
-                video_path=None,  # 音频文件，不需要视频路径
-                output_path=None,  # 自动生成输出路径
-                config=subtitle_config,
-            )
-
-            # 在后台执行字幕处理任务
-            asyncio.create_task(
-                self._process_subtitle_task(
-                    task_id,
-                    subtitle_task_id,
-                    subtitle_request,
-                )
-            )
-
-            logger.info(f"[任务 {task_id}] 字幕处理任务已创建: {subtitle_task_id}")
-        except Exception as e:
-            logger.error(
-                f"[任务 {task_id}] 转录处理失败: {str(e)}",
-                exc_info=True,
-            )
-            # 转录失败，标记音频下载任务为失败
-            self.task_manager.update_task(
-                task_id,
-                status=TaskStatus.FAILED,
-                error=f"转录失败: {str(e)}",
-                message="音频下载完成，但转录失败",
-            )
-
-    async def _process_subtitle_task(
-        self,
-        task_id: str,
-        subtitle_task_id: str,
-        subtitle_request: SubtitleRequest,
-    ):
-        """处理字幕任务"""
-        try:
-            # 执行字幕处理
-            logger.info(f"[任务 {task_id}] 开始执行字幕处理任务: {subtitle_task_id}")
-
-            await self.subtitle_service.process_subtitle_task(
-                subtitle_task_id, subtitle_request
-            )
-
-            # 轮询等待任务完成
-            max_wait_time = 3600  # 最多等待1小时
-            poll_interval = 0.5  # 每0.5秒检查一次
-            elapsed_time = 0
-
-            while elapsed_time < max_wait_time:
-                subtitle_task = self.task_manager.get_task(subtitle_task_id)
-
-                if not subtitle_task:
-                    logger.error(f"[任务 {task_id}] 字幕任务不存在: {subtitle_task_id}")
-                    return
-
-                # 检查任务状态
-                if subtitle_task.status == TaskStatus.FAILED:
-                    error_msg = subtitle_task.error or "字幕处理失败"
-                    logger.error(f"[任务 {task_id}] 字幕处理失败: {error_msg}")
-                    # 字幕处理失败，但转录已完成，标记音频下载任务为完成（带警告）
-                    audio_task = self.task_manager.get_task(task_id)
-                    audio_file_path = audio_task.output_path if audio_task else None
-                    self.task_manager.update_task(
-                        task_id,
-                        status=TaskStatus.COMPLETED,
-                        progress=100,
-                        message=f"音频下载和转录完成，但字幕处理失败: {error_msg}",
-                        output_path=audio_file_path,
-                    )
-                    return
-
-                if (
-                    subtitle_task.status == TaskStatus.COMPLETED
-                    and subtitle_task.output_path
-                ):
-                    logger.info(
-                        f"[任务 {task_id}] 字幕处理完成: {subtitle_task.output_path}"
-                    )
-                    break
-
-                # 如果任务还在运行或等待中，继续等待
-                if subtitle_task.status in [TaskStatus.PENDING, TaskStatus.RUNNING]:
-                    await asyncio.sleep(poll_interval)
-                    elapsed_time += poll_interval
-                    continue
-
-                # 其他状态，记录警告并退出
-                logger.warning(
-                    f"[任务 {task_id}] 字幕任务状态异常: "
-                    f"status={subtitle_task.status}, "
-                    f"output_path={subtitle_task.output_path}, "
-                    f"message={subtitle_task.message}"
-                )
-                return
-
-            # 检查是否超时
-            if elapsed_time >= max_wait_time:
-                logger.error(f"[任务 {task_id}] 字幕任务超时: {subtitle_task_id}")
-                # 字幕超时，但转录已完成，标记音频下载任务为完成（带警告）
-                audio_task = self.task_manager.get_task(task_id)
-                audio_file_path = audio_task.output_path if audio_task else None
-                self.task_manager.update_task(
-                    task_id,
-                    status=TaskStatus.COMPLETED,
-                    progress=100,
-                    message="音频下载和转录完成，但字幕处理超时",
-                    output_path=audio_file_path,
-                )
-                return
-
-            # 再次获取任务，确保获取到最终结果
-            subtitle_task = self.task_manager.get_task(subtitle_task_id)
-
-            if (
-                not subtitle_task
-                or subtitle_task.status != TaskStatus.COMPLETED
-                or not subtitle_task.output_path
-            ):
-                logger.error(
-                    f"[任务 {task_id}] 无法获取字幕处理结果: "
-                    f"task_exists={subtitle_task is not None}, "
-                    f"status={subtitle_task.status if subtitle_task else 'None'}, "
-                    f"output_path={subtitle_task.output_path if subtitle_task else 'None'}"
-                )
-                # 无法获取字幕结果，但转录已完成，标记音频下载任务为完成（带警告）
-                audio_task = self.task_manager.get_task(task_id)
-                audio_file_path = audio_task.output_path if audio_task else None
-                self.task_manager.update_task(
-                    task_id,
-                    status=TaskStatus.COMPLETED,
-                    progress=100,
-                    message="音频下载和转录完成，但无法获取字幕处理结果",
-                    output_path=audio_file_path,
-                )
-                return
-
-            # 字幕处理任务完成，标记音频下载任务为完成
-            logger.info(f"[任务 {task_id}] 字幕处理任务完成，标记音频下载任务为完成")
-
-            # 获取音频文件路径
-            audio_task = self.task_manager.get_task(task_id)
-            audio_file_path = audio_task.output_path if audio_task else None
-
-            self.task_manager.update_task(
-                task_id,
-                status=TaskStatus.COMPLETED,
-                progress=100,
-                message="音频下载、转录和字幕处理完成",
-                output_path=audio_file_path,
-            )
-        except Exception as e:
-            logger.error(
-                f"[任务 {task_id}] 字幕处理失败: {str(e)}",
-                exc_info=True,
-            )
-            # 字幕处理失败，但转录已完成，标记音频下载任务为完成（带警告）
-            audio_task = self.task_manager.get_task(task_id)
-            audio_file_path = audio_task.output_path if audio_task else None
-            self.task_manager.update_task(
-                task_id,
-                status=TaskStatus.COMPLETED,
-                progress=100,
-                message=f"音频下载和转录完成，但字幕处理失败: {str(e)}",
-                output_path=audio_file_path,
             )
 
     def _download_video_sync(

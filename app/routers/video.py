@@ -2,29 +2,25 @@
 视频相关路由
 """
 
-from fastapi import APIRouter, BackgroundTasks, HTTPException
+from fastapi import APIRouter, HTTPException
 
 from app.schemas.video_download import (
     VideoDownloadResponse,
     SubtitleTaskInfo,
     TranscribeTaskInfo,
 )
-from app.services.video_download_service import VideoDownloadService
 from app.services.task_manager import get_task_manager
+from app.tasks.video_tasks import download_audio_task
 from app.core.constants import TaskStatus
 from app.core.utils.logger import setup_logger
 
 router = APIRouter()
-video_download_service = VideoDownloadService()
 task_manager = get_task_manager()
 logger = setup_logger("video_router")
 
 
 @router.post("/video/analyze", response_model=VideoDownloadResponse)
-async def start_analysis(
-    url: str,
-    background_tasks: BackgroundTasks,
-):
+async def start_analysis(url: str):
     """开始任务分析接口
 
     通过 URL 开始分析任务（下载音频并转录）。
@@ -36,26 +32,24 @@ async def start_analysis(
         logger.info(f"收到音频下载请求（通过URL）: url={url}")
 
         # 创建下载任务
-        task_id = task_manager.create_task()
+        task_id = task_manager.create_task(
+            task_type="video_download",
+            video_url=url,
+        )
         logger.info(f"创建音频下载任务: task_id={task_id}")
 
         # 构建消息
         message = "任务已创建，开始下载音频..."
+
+        # 发送 Celery 任务到队列
+        download_audio_task.delay(task_id, url, None)
+        logger.info(f"任务 {task_id} 已发送到 Celery 队列")
 
         task_response = VideoDownloadResponse(
             task_id=task_id,
             status=TaskStatus.PENDING,
             message=message,
         )
-
-        # 在后台执行下载任务
-        background_tasks.add_task(
-            video_download_service.download_audio_task,
-            task_id,
-            url,
-            None,  # 使用默认工作目录
-        )
-        logger.debug(f"任务 {task_id} 已添加到后台任务队列")
 
         return task_response
     except Exception as e:

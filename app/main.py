@@ -16,6 +16,8 @@ from app.routers import (
 )
 from app.core.llm.health_check import get_health_checker, _global_health_checker
 from app.core.utils.logger import setup_logger
+from app.database.init_db import init_db
+from app.core.storage.init_minio import init_minio
 
 logger = setup_logger("main")
 
@@ -24,6 +26,23 @@ logger = setup_logger("main")
 async def lifespan(app: FastAPI):
     """应用生命周期管理"""
     # 启动时执行
+    # 初始化数据库
+    try:
+        init_db()
+        logger.info("数据库初始化成功")
+    except Exception as e:
+        logger.error(f"数据库初始化失败: {e}", exc_info=True)
+        raise
+
+    # 初始化 MinIO
+    try:
+        init_minio()
+        logger.info("MinIO 初始化成功")
+    except Exception as e:
+        logger.error(f"MinIO 初始化失败: {e}", exc_info=True)
+        raise
+
+    # 健康检查
     health_checker = get_health_checker(check_interval=60)  # 1分钟检查一次
 
     # 第一次启动时直接执行一次健康检查

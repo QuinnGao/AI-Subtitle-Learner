@@ -48,3 +48,19 @@ yt-dlp>=2023.12.30  # YouTube 视频下载工具
 # WhisperX（用于精准时间戳转录）
 whisperx>=3.1.1
 
+# 消息队列和任务调度
+celery>=5.3.0
+kombu>=5.3.0  # Celery 的消息传输层
+
+# 数据库
+sqlalchemy>=2.0.0
+psycopg2-binary>=2.9.9  # PostgreSQL 驱动
+alembic>=1.12.0  # 数据库迁移工具
+
+# Redis
+redis>=5.0.0
+hiredis>=2.2.0  # Redis 性能优化（可选）
+
+# MinIO 对象存储
+minio>=7.2.0
+

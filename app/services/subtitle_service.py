@@ -136,14 +136,57 @@ class SubtitleService:
         except Exception as e:
             logger.warning(f"保存缓存失败: {cache_path}, 错误: {e}")
 
+    def _get_subtitle_path_from_db(self, task_id: str) -> Path:
+        """从数据库获取字幕文件路径
+
+        优先从关联的转录任务的 output_path 获取文件路径
+        """
+        # 1. 尝试从关联的转录任务获取文件路径
+        transcribe_task_id = self.task_manager.get_task_relation(
+            task_id, "transcribe_task_id"
+        )
+        if transcribe_task_id:
+            transcribe_task = self.task_manager.get_task(transcribe_task_id)
+            if transcribe_task and transcribe_task.output_path:
+                subtitle_path = transcribe_task.output_path
+                logger.info(
+                    f"[任务 {task_id}] 从关联转录任务获取字幕文件路径: "
+                    f"transcribe_task_id={transcribe_task_id}, subtitle_path={subtitle_path}"
+                )
+                return Path(subtitle_path)
+
+        # 2. 如果没有关联的转录任务，抛出错误
+        error_msg = (
+            f"无法获取字幕文件路径: task_id={task_id}, "
+            f"没有关联的转录任务或转录任务没有输出路径"
+        )
+        logger.error(f"[任务 {task_id}] {error_msg}")
+        raise ValueError(error_msg)
+
     def _validate_subtitle_file(self, task_id: str, subtitle_path: Path) -> None:
-        """验证字幕文件是否存在"""
+        """验证字幕文件是否存在（支持 MinIO）"""
         logger.info(f"[任务 {task_id}] 验证字幕文件: {subtitle_path}")
-        if not subtitle_path.exists():
-            error_msg = f"字幕文件不存在: {subtitle_path}"
-            logger.error(f"[任务 {task_id}] {error_msg}")
-            raise ValueError(error_msg)
-        logger.info(f"[任务 {task_id}] 字幕文件验证通过: {subtitle_path}")
+        subtitle_path_str = str(subtitle_path)
+
+        # 检查是否是 MinIO 对象
+        from app.core.storage import get_storage
+
+        storage = get_storage()
+        if storage.file_exists(subtitle_path_str):
+            logger.info(f"[任务 {task_id}] 字幕文件存在于 MinIO: {subtitle_path_str}")
+            return
+
+        # 检查是否是本地文件
+        if subtitle_path.exists():
+            logger.info(
+                f"[任务 {task_id}] 字幕文件验证通过（本地文件）: {subtitle_path}"
+            )
+            return
+
+        # 文件不存在
+        error_msg = f"字幕文件不存在: {subtitle_path}"
+        logger.error(f"[任务 {task_id}] {error_msg}")
+        raise ValueError(error_msg)
 
     def _prepare_config(self, task_id: str, config) -> CoreSubtitleConfig:
         """准备配置（使用环境变量默认值并转换）"""
@@ -164,13 +207,38 @@ class SubtitleService:
         return core_config
 
     def _load_subtitle_data(self, task_id: str, subtitle_path: Path) -> ASRData:
-        """加载字幕数据"""
+        """加载字幕数据（支持从 MinIO 读取）"""
         logger.info(f"[任务 {task_id}] 加载字幕文件: {subtitle_path}")
-        asr_data = ASRData.from_subtitle_file(str(subtitle_path))
-        logger.info(
-            f"[任务 {task_id}] 字幕加载完成，共 {len(asr_data.segments)} 条字幕"
-        )
-        return asr_data
+        subtitle_path_str = str(subtitle_path)
+
+        # 检查是否是 MinIO 对象，如果是则下载到临时文件
+        from app.core.storage import get_storage
+        import tempfile
+
+        storage = get_storage()
+
+        if storage.file_exists(subtitle_path_str):
+            # 从 MinIO 下载到临时文件
+            logger.info(f"[任务 {task_id}] 从 MinIO 下载字幕文件: {subtitle_path_str}")
+            with tempfile.NamedTemporaryFile(
+                delete=False, suffix=Path(subtitle_path_str).suffix
+            ) as tmp_file:
+                tmp_path = tmp_file.name
+            storage.download_file(subtitle_path_str, tmp_path)
+            logger.info(f"[任务 {task_id}] 字幕文件已下载到临时文件: {tmp_path}")
+            try:
+                asr_data = ASRData.from_subtitle_file(tmp_path)
+                return asr_data
+            finally:
+                # 清理临时文件
+                Path(tmp_path).unlink(missing_ok=True)
+        else:
+            # 本地文件
+            asr_data = ASRData.from_subtitle_file(subtitle_path_str)
+            logger.info(
+                f"[任务 {task_id}] 字幕加载完成，共 {len(asr_data.segments)} 条字幕"
+            )
+            return asr_data
 
     def _calculate_output_name(self, subtitle_path: Path) -> str:
         """计算输出文件名"""
@@ -210,8 +278,10 @@ class SubtitleService:
         if cached_data:
             logger.info(f"[任务 {task_id}] 使用缓存的断句结果: {cache_path}")
             asr_data = ASRData.from_json(cached_data)
-            asr_data.save(save_path=split_path)
-            logger.info(f"[任务 {task_id}] 断句完成（使用缓存），保存到: {split_path}")
+            final_path = asr_data.save(save_path=split_path, use_minio=True)
+            logger.info(
+                f"[任务 {task_id}] 断句完成（使用缓存），保存到 MinIO: {final_path}"
+            )
         else:
             logger.info(f"[任务 {task_id}] 开始重新断句（字词级字幕）")
             self.task_manager.update_task(task_id, progress=10, message="字幕断句中")
@@ -222,11 +292,11 @@ class SubtitleService:
                 max_word_count_english=core_config.max_word_count_english,
             )
             asr_data = await splitter.split_subtitle(asr_data)
-            asr_data.save(save_path=split_path)
+            final_path = asr_data.save(save_path=split_path, use_minio=True)
             # 保存到缓存
             self._save_to_cache(cache_path, asr_data.to_json())
             logger.info(
-                f"[任务 {task_id}] 断句完成，保存到: {split_path}，已缓存到: {cache_path}"
+                f"[任务 {task_id}] 断句完成，保存到 MinIO: {final_path}，已缓存到: {cache_path}"
             )
 
         return asr_data
@@ -433,8 +503,16 @@ class SubtitleService:
         asr_data: ASRData,
         core_config: CoreSubtitleConfig,
     ) -> str:
-        """保存处理结果到缓存"""
-        # 保存到缓存
+        """保存处理结果到 MinIO 和缓存"""
+        # 生成输出路径（MinIO 路径）
+        output_name = self._calculate_output_name(subtitle_path)
+        minio_output_path = f"{subtitle_path.parent}/{output_name}.json"
+
+        # 保存到 MinIO（使用 ASRData 的 save 方法）
+        minio_path = asr_data.save(save_path=minio_output_path, use_minio=True)
+        logger.info(f"[任务 {task_id}] 保存 JSON 结果到 MinIO: {minio_path}")
+
+        # 同时保存到本地缓存（用于快速访问）
         cache_path = self._get_cache_file_path(
             "result", str(subtitle_path), core_config
         )
@@ -442,24 +520,19 @@ class SubtitleService:
         self._save_to_cache(cache_path, json_data)
         logger.info(f"[任务 {task_id}] 保存 JSON 结果到缓存: {cache_path}")
 
-        return str(cache_path)
+        return minio_path  # 返回 MinIO 路径
 
     async def process_subtitle_task(self, task_id: str, request: SubtitleRequest):
         """处理字幕任务"""
         logger.info(f"[任务 {task_id}] 开始处理字幕任务")
-
-        logger.debug(
-            f"[任务 {task_id}] 请求参数: subtitle_path={request.subtitle_path}, "
-            f"video_path={request.video_path}, output_path={request.output_path}"
-        )
 
         try:
             self.task_manager.update_task(
                 task_id, status="running", message="开始处理字幕"
             )
 
-            # 1. 验证文件
-            subtitle_path = Path(request.subtitle_path)
+            # 1. 从数据库获取文件路径（优先从关联的转录任务获取）
+            subtitle_path = self._get_subtitle_path_from_db(task_id)
             self._validate_subtitle_file(task_id, subtitle_path)
 
             # 2. 准备配置

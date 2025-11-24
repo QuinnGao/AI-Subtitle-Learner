@@ -206,6 +206,65 @@
       "envFile": "${workspaceFolder}/.env",
       "cwd": "${workspaceFolder}",
       "python": "${command:python.interpreterPath}"
+    },
+    {
+      "name": "Python: Celery Worker (Debug)",
+      "type": "debugpy",
+      "request": "launch",
+      "module": "celery",
+      "args": [
+        "-A",
+        "app.celery_app",
+        "worker",
+        "--loglevel=info",
+        "--concurrency=1",
+        "-Q",
+        "default,video,transcribe,subtitle",
+        "--pool=solo"
+      ],
+      "jinja": true,
+      "justMyCode": false,
+      "env": {
+        "PYTHONPATH": "${workspaceFolder}",
+        "PYTHONUNBUFFERED": "1",
+        "LOG_LEVEL": "DEBUG",
+        "C_FORCE_ROOT": "true",
+        "LOGURU_DISABLE_ENQUEUE": "true"
+      },
+      "envFile": "${workspaceFolder}/.env",
+      "cwd": "${workspaceFolder}",
+      "console": "integratedTerminal",
+      "python": "${command:python.interpreterPath}"
+    },
+    {
+      "name": "Python: Celery Worker (All Queues)",
+      "type": "debugpy",
+      "request": "launch",
+      "module": "celery",
+      "args": [
+        "-A",
+        "app.celery_app",
+        "worker",
+        "--loglevel=debug",
+        "--concurrency=1",
+        "-Q",
+        "default,video,transcribe,subtitle",
+        "--pool=solo",
+        "--max-tasks-per-child=10"
+      ],
+      "jinja": true,
+      "justMyCode": false,
+      "env": {
+        "PYTHONPATH": "${workspaceFolder}",
+        "PYTHONUNBUFFERED": "1",
+        "LOG_LEVEL": "DEBUG",
+        "C_FORCE_ROOT": "true",
+        "LOGURU_DISABLE_ENQUEUE": "true"
+      },
+      "envFile": "${workspaceFolder}/.env",
+      "cwd": "${workspaceFolder}",
+      "console": "integratedTerminal",
+      "python": "${command:python.interpreterPath}"
     }
   ],
   "compounds": [

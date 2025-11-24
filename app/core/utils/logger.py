@@ -2,6 +2,7 @@
 使用 loguru 的日志配置模块
 """
 
+import os
 import sys
 from pathlib import Path
 from typing import Optional, TextIO
@@ -9,6 +10,33 @@ from typing import Optional, TextIO
 from loguru import logger
 
 from ...config import LOG_LEVEL, LOG_PATH
+
+
+def _should_disable_enqueue() -> bool:
+    """检测是否应该禁用 enqueue（避免 multiprocessing 问题）
+    
+    在以下情况下禁用 enqueue：
+    1. 环境变量 LOGURU_DISABLE_ENQUEUE=true
+    2. 检测到 VSCode debug 环境（VSCODE_PID 存在）
+    3. 检测到 multiprocessing 环境（multiprocessing.current_process().name != 'MainProcess'）
+    """
+    # 检查环境变量
+    if os.getenv("LOGURU_DISABLE_ENQUEUE", "").lower() == "true":
+        return True
+    
+    # 检查 VSCode debug 环境
+    if os.getenv("VSCODE_PID") is not None:
+        return True
+    
+    # 检查是否在 multiprocessing 子进程中
+    try:
+        import multiprocessing
+        if multiprocessing.current_process().name != "MainProcess":
+            return True
+    except (ImportError, AttributeError):
+        pass
+    
+    return False
 
 
 class AutoFlushStream:
@@ -119,6 +147,9 @@ def setup_logger(
             except Exception:
                 return "{time} | {level} | {message}\n"
 
+        # 检测是否应该禁用 enqueue（避免在 VSCode debug 等环境中的 multiprocessing 问题）
+        use_enqueue = not _should_disable_enqueue()
+        
         # 添加控制台输出
         if console_output:
             # 使用自动刷新的流包装器，确保日志立即输出
@@ -131,7 +162,7 @@ def setup_logger(
                 colorize=True,
                 backtrace=True,
                 diagnose=True,
-                enqueue=True,  # 线程安全，确保后台任务日志能正确输出
+                enqueue=use_enqueue,  # 线程安全，但在某些环境下可能有问题
             )
 
         # 添加文件输出
@@ -151,7 +182,7 @@ def setup_logger(
             encoding="utf-8",
             backtrace=True,
             diagnose=True,
-            enqueue=True,  # 线程安全，确保后台任务日志能正确写入文件
+            enqueue=use_enqueue,  # 线程安全，但在某些环境下可能有问题
             colorize=False,  # 文件输出不需要颜色
         )
 

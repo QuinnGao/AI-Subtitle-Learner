@@ -1,6 +1,7 @@
 """
 应用配置模块
 """
+
 import os
 from pathlib import Path
 from typing import Optional
@@ -24,13 +25,37 @@ class Settings(BaseSettings):
     # 文件上传配置
     max_upload_size: int = 1024 * 1024 * 1024 * 5  # 5GB
     allowed_video_extensions: list[str] = [
-        ".mp4", ".webm", ".ogm", ".mov", ".mkv", ".avi",
-        ".wmv", ".flv", ".m4v", ".ts", ".mpg", ".mpeg"
+        ".mp4",
+        ".webm",
+        ".ogm",
+        ".mov",
+        ".mkv",
+        ".avi",
+        ".wmv",
+        ".flv",
+        ".m4v",
+        ".ts",
+        ".mpg",
+        ".mpeg",
     ]
     allowed_audio_extensions: list[str] = [
-        ".aac", ".ac3", ".aiff", ".amr", ".ape", ".au",
-        ".flac", ".m4a", ".mp2", ".mp3", ".mka", ".oga",
-        ".ogg", ".opus", ".ra", ".wav", ".wma"
+        ".aac",
+        ".ac3",
+        ".aiff",
+        ".amr",
+        ".ape",
+        ".au",
+        ".flac",
+        ".m4a",
+        ".mp2",
+        ".mp3",
+        ".mka",
+        ".oga",
+        ".ogg",
+        ".opus",
+        ".ra",
+        ".wav",
+        ".wma",
     ]
     allowed_subtitle_extensions: list[str] = [".srt", ".ass", ".vtt"]
 
@@ -47,11 +72,28 @@ class Settings(BaseSettings):
     llm_api_base: Optional[str] = None
     llm_api_key: Optional[str] = None
     llm_model: Optional[str] = None
-    
+
     # 兼容旧的环境变量名称
     openai_api_base: Optional[str] = None
     openai_api_key: Optional[str] = None
     openai_model: Optional[str] = None
+
+    # 数据库配置
+    database_url: str = "postgresql://subtitle:subtitle@localhost:5432/subtitle"
+
+    # Redis 配置
+    redis_url: str = "redis://localhost:6379/0"
+
+    # Celery 配置
+    celery_broker_url: str = "amqp://guest:guest@localhost:5672//"
+    celery_result_backend: str = "redis://localhost:6379/1"
+
+    # MinIO 配置
+    minio_endpoint: str = "localhost:9000"
+    minio_access_key: str = "minioadmin"
+    minio_secret_key: str = "minioadmin"
+    minio_secure: bool = False
+    minio_bucket_name: str = "subtitle-files"
 
     # 字幕配置（从环境变量读取）
     max_word_count_cjk: int = 25
@@ -90,7 +132,40 @@ LOG_LEVEL = settings.log_level
 VERSION = "1.0.0"
 
 # LLM API 配置（从环境变量读取，优先使用新名称，兼容旧名称）
-LLM_API_BASE = settings.llm_api_base or settings.openai_api_base or os.getenv("LLM_API_BASE") or os.getenv("OPENAI_API_BASE")
-LLM_API_KEY = settings.llm_api_key or settings.openai_api_key or os.getenv("LLM_API_KEY") or os.getenv("OPENAI_API_KEY")
-LLM_MODEL = settings.llm_model or settings.openai_model or os.getenv("LLM_MODEL") or os.getenv("OPENAI_MODEL")
+LLM_API_BASE = (
+    settings.llm_api_base
+    or settings.openai_api_base
+    or os.getenv("LLM_API_BASE")
+    or os.getenv("OPENAI_API_BASE")
+)
+LLM_API_KEY = (
+    settings.llm_api_key
+    or settings.openai_api_key
+    or os.getenv("LLM_API_KEY")
+    or os.getenv("OPENAI_API_KEY")
+)
+LLM_MODEL = (
+    settings.llm_model
+    or settings.openai_model
+    or os.getenv("LLM_MODEL")
+    or os.getenv("OPENAI_MODEL")
+)
 
+# 数据库配置
+DATABASE_URL = os.getenv("DATABASE_URL", settings.database_url)
+
+# Redis 配置
+REDIS_URL = os.getenv("REDIS_URL", settings.redis_url)
+
+# Celery 配置
+CELERY_BROKER_URL = os.getenv("CELERY_BROKER_URL", settings.celery_broker_url)
+CELERY_RESULT_BACKEND = os.getenv(
+    "CELERY_RESULT_BACKEND", settings.celery_result_backend
+)
+
+# MinIO 配置
+MINIO_ENDPOINT = os.getenv("MINIO_ENDPOINT", settings.minio_endpoint)
+MINIO_ACCESS_KEY = os.getenv("MINIO_ACCESS_KEY", settings.minio_access_key)
+MINIO_SECRET_KEY = os.getenv("MINIO_SECRET_KEY", settings.minio_secret_key)
+MINIO_SECURE = os.getenv("MINIO_SECURE", "false").lower() == "true"
+MINIO_BUCKET_NAME = os.getenv("MINIO_BUCKET_NAME", settings.minio_bucket_name)

@@ -60,9 +60,9 @@ class BaseASR:
             self.file_binary = self.audio_path
         elif isinstance(self.audio_path, str):
             ext = self.audio_path.split(".")[-1].lower()
-            assert (
-                ext in self.SUPPORTED_SOUND_FORMAT
-            ), f"Unsupported sound format: {ext}"
+            assert ext in self.SUPPORTED_SOUND_FORMAT, (
+                f"Unsupported sound format: {ext}"
+            )
             assert os.path.exists(self.audio_path), f"File not found: {self.audio_path}"
             with open(self.audio_path, "rb") as f:
                 self.file_binary = f.read()
@@ -98,10 +98,13 @@ class BaseASR:
 
         # Try cache first
         if self.use_cache and is_cache_enabled():
-            cached_result = cast(
-                Optional[dict], self._cache.get(cache_key, default=None)
-            )
+            cached_result = self._cache.get(cache_key)
             if cached_result is not None:
+                # 反序列化缓存结果
+                import pickle
+
+                cached_result = pickle.loads(cached_result)
+                cached_result = cast(Optional[dict], cached_result)
                 logger.info("找到缓存，直接返回")
                 segments = self._make_segments(cached_result)
                 return ASRData(segments)
@@ -110,7 +113,10 @@ class BaseASR:
         resp_data = self._run(callback, **kwargs)
 
         # Cache result
-        self._cache.set(cache_key, resp_data, expire=86400 * 2)
+        import pickle
+
+        cached_data = pickle.dumps(resp_data)
+        self._cache.setex(cache_key, 86400 * 2, cached_data)
 
         segments = self._make_segments(resp_data)
         return ASRData(segments)
@@ -169,9 +175,13 @@ class BaseASR:
         # Get durations using cache API
         durations = []
         for (key,) in results:
-            duration = self._cache.get(key, default=None)
-            if duration is not None and isinstance(duration, (int, float)):
-                durations.append(duration)
+            duration_bytes = self._cache.get(key)
+            if duration_bytes is not None:
+                import pickle
+
+                duration = pickle.loads(duration_bytes)
+                if isinstance(duration, (int, float)):
+                    durations.append(duration)
 
         call_count = len(durations)
         total_duration = sum(durations)
@@ -189,9 +199,12 @@ class BaseASR:
             raise RuntimeError(error_msg)
 
         # Record current call (store duration directly as float)
-        self._cache.set(
+        import pickle
+
+        duration_bytes = pickle.dumps(self.audio_duration)
+        expire_time = int(self.RATE_LIMIT_TIME_WINDOW) + 3600
+        self._cache.setex(
             f"rate_limit_record:{service_name}:{uuid.uuid4()}",
-            self.audio_duration,
-            tag=tag,
-            expire=int(self.RATE_LIMIT_TIME_WINDOW) + 3600,
+            expire_time,
+            duration_bytes,
         )
