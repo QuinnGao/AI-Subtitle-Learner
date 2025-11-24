@@ -11,6 +11,10 @@ from app.core.asr import transcribe
 from app.core.entities import TranscribeConfig as CoreTranscribeConfig
 from app.core.constants import TaskStatus
 from app.core.utils.logger import setup_logger
+from app.core.entities import (
+    TranscribeModelEnum,
+    TranscribeOutputFormatEnum,
+)
 
 task_manager = get_task_manager()
 logger = setup_logger("transcribe_service")
@@ -120,10 +124,6 @@ class TranscribeService:
         """转换配置格式"""
         # 这里需要将 API 的配置转换为 core 模块的配置格式
         # 由于 core 模块使用的是枚举类型，需要进行映射
-        from app.core.entities import (
-            TranscribeModelEnum,
-            TranscribeOutputFormatEnum,
-        )
 
         return CoreTranscribeConfig(
             transcribe_model=TranscribeModelEnum[config.transcribe_model.value.upper()],
