@@ -63,9 +63,9 @@ async def start_analysis(
         raise HTTPException(status_code=500, detail=str(e))
 
 
-@router.get("/video/download/{task_id}", response_model=VideoDownloadResponse)
-async def get_video_download_task(task_id: str):
-    """获取视频下载任务状态"""
+@router.get("/video/analyze/{task_id}", response_model=VideoDownloadResponse)
+async def get_video_analyze_task_status(task_id: str):
+    """获取视频分析任务状态"""
 
     logger.debug(f"查询任务状态: task_id={task_id}")
     task = task_manager.get_task(task_id)

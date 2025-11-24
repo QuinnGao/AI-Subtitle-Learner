@@ -9,6 +9,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import ORJSONResponse
 
 from app.routers import (
+    dictionary,
     health,
     subtitle,
     video,
@@ -59,6 +60,7 @@ app.add_middleware(
 # 注册路由
 app.include_router(health.router, tags=["健康检查"])
 app.include_router(subtitle.router, prefix="/api/v1", tags=["字幕处理"])
+app.include_router(dictionary.router, prefix="/api/v1", tags=["字典查询"])
 app.include_router(video.router, prefix="/api/v1", tags=["视频"])
 
 

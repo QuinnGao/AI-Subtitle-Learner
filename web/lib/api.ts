@@ -96,7 +96,7 @@ export interface DictionaryQueryResponse {
 }
 
 export const queryDictionary = async (request: DictionaryQueryRequest): Promise<DictionaryQueryResponse> => {
-  const response = await api.post<DictionaryQueryResponse>("/subtitle/dictionary/query", request);
+  const response = await api.post<DictionaryQueryResponse>("/dictionary/query", request);
   return response.data;
 };
 
@@ -106,6 +106,6 @@ export const downloadVideoByUrl = async (url: string): Promise<VideoDownloadResp
 };
 
 export const getVideoDownloadTaskStatus = async (taskId: string): Promise<VideoDownloadResponse> => {
-  const response = await api.get<VideoDownloadResponse>(`/video/download/${taskId}`);
+  const response = await api.get<VideoDownloadResponse>(`/video/analyze/${taskId}`);
   return response.data;
 };

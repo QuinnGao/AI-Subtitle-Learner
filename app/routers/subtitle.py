@@ -6,17 +6,11 @@ from fastapi import APIRouter, HTTPException
 from pathlib import Path
 import json
 from app.core.constants import TaskStatus
-from app.schemas.subtitle import (
-    DictionaryQueryRequest,
-    DictionaryQueryResponse,
-)
 from app.services.task_manager import get_task_manager
-from app.services.dictionary_service import DictionaryService
 from app.core.utils.logger import setup_logger
 
 router = APIRouter()
 task_manager = get_task_manager()
-dictionary_service = DictionaryService()
 logger = setup_logger("subtitle_router")
 
 
@@ -83,30 +77,3 @@ async def get_subtitle_content(task_id: str):
         raise HTTPException(
             status_code=500, detail=f"从缓存读取 JSON 文件失败: {str(e)}"
         )
-
-
-@router.post("/subtitle/dictionary/query", response_model=DictionaryQueryResponse)
-async def query_dictionary(request: DictionaryQueryRequest):
-    """查询单词的词典信息
-
-    Args:
-        request: 词典查询请求，包含单词文本、平假名、罗马字、词性等信息
-
-    Returns:
-        词典查询响应，包含单词的详细词典信息
-    """
-    logger.info(f"收到词典查询请求: word={request.word}")
-    try:
-        result = dictionary_service.query_word(
-            word=request.word,
-            furigana=request.furigana,
-            romaji=request.romaji,
-            part_of_speech=request.part_of_speech,
-        )
-        logger.info(f"成功查询单词: {request.word}")
-        return DictionaryQueryResponse(**result)
-    except Exception as e:
-        logger.error(
-            f"查询词典失败: word={request.word}, error={str(e)}", exc_info=True
-        )
-        raise HTTPException(status_code=500, detail=f"查询词典失败: {str(e)}")

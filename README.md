@@ -293,13 +293,13 @@ npm run dev
 
 ### 视频分析
 - `POST /api/v1/video/analyze?url=...` - 从 YouTube URL 开始分析任务（下载音频并转录）
-- `GET /api/v1/video/download/{task_id}` - 查询视频下载任务状态
+- `GET /api/v1/video/analyze/{task_id}` - 查询视频分析任务状态
 
 ### 字幕处理
 - `GET /api/v1/subtitle/{task_id}/content` - 获取字幕内容（JSON 格式，包含时间戳）
 
 ### 字典查询
-- `POST /api/v1/subtitle/dictionary/query` - 查询单词释义（基于 LLM）
+- `POST /api/v1/dictionary/query` - 查询单词释义（基于 LLM）
 
 ## 项目结构说明
 
@@ -376,7 +376,7 @@ task_id = response.json()["task_id"]
 
 # 查询任务状态
 status_response = requests.get(
-    f"http://localhost:8000/api/v1/video/download/{task_id}"
+    f"http://localhost:8000/api/v1/video/analyze/{task_id}"
 )
 print(status_response.json())
 
@@ -395,7 +395,7 @@ if status_response.json()["status"] == "completed":
 ```python
 # 查询单词释义
 response = requests.post(
-    "http://localhost:8000/api/v1/subtitle/dictionary/query",
+    "http://localhost:8000/api/v1/dictionary/query",
     json={
         "word": "こんにちは",
         "furigana": "こんにちは",
