@@ -28,7 +28,7 @@
 - 📝 自动生成 API 文档（Swagger UI 和 ReDoc）
 - 🔒 类型提示和数据验证
 - 🎬 视频下载与转录：从 YouTube 下载音频并自动转录
-- 🌐 字幕翻译：支持多种翻译服务（OpenAI LLM、Bing、Google）
+- 🌐 字幕翻译：支持 LLM 大模型翻译（OpenAI 兼容 API）
 - ✂️ 字幕处理：自动分割、日语分析、翻译
 - 📚 字典查询：基于 LLM 的单词查询功能
 - 🔄 异步任务：后台任务处理，支持进度查询
@@ -296,7 +296,6 @@ npm run dev
 - `GET /api/v1/video/download/{task_id}` - 查询视频下载任务状态
 
 ### 字幕处理
-- `GET /api/v1/subtitle/{task_id}` - 查询字幕处理任务状态
 - `GET /api/v1/subtitle/{task_id}/content` - 获取字幕内容（JSON 格式，包含时间戳）
 
 ### 字典查询

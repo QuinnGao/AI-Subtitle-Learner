@@ -50,11 +50,6 @@ class TestSubtitleAPI:
         # 等待一下让后台任务执行
         time.sleep(1)
 
-        # 检查任务状态
-        task_id = data["task_id"]
-        status_response = client.get(f"/api/v1/subtitle/{task_id}")
-        assert status_response.status_code == status.HTTP_200_OK
-
     def test_create_subtitle_task_with_full_config(self, client, sample_srt_file):
         """测试使用完整配置创建字幕处理任务"""
         request_data = {
@@ -87,34 +82,6 @@ class TestSubtitleAPI:
         data = response.json()
         assert "task_id" in data
         assert data["status"] == TaskStatus.PENDING
-
-    def test_get_subtitle_task_status(self, client, sample_srt_file):
-        """测试获取字幕处理任务状态"""
-        # 先创建任务
-        request_data = {
-            "subtitle_path": sample_srt_file,
-            "config": {},
-        }
-        create_response = client.post("/api/v1/subtitle", json=request_data)
-        assert create_response.status_code == status.HTTP_200_OK
-        task_id = create_response.json()["task_id"]
-
-        # 获取任务状态
-        response = client.get(f"/api/v1/subtitle/{task_id}")
-
-        assert response.status_code == status.HTTP_200_OK
-        data = response.json()
-        assert data["task_id"] == task_id
-        assert "status" in data
-        assert "queued_at" in data
-
-    def test_get_subtitle_task_not_found(self, client):
-        """测试获取不存在的任务状态"""
-        fake_task_id = "00000000-0000-0000-0000-000000000000"
-        response = client.get(f"/api/v1/subtitle/{fake_task_id}")
-
-        assert response.status_code == status.HTTP_404_NOT_FOUND
-        assert "任务不存在" in response.json()["detail"]
 
     def test_download_subtitle_result_not_found(self, client):
         """测试下载不存在的任务结果"""
@@ -159,31 +126,14 @@ class TestSubtitleAPI:
         assert create_response.status_code == status.HTTP_200_OK
         task_id = create_response.json()["task_id"]
 
-        # 2. 轮询任务状态（最多等待 10 秒）
-        max_wait = 10
-        wait_time = 0
-        while wait_time < max_wait:
-            status_response = client.get(f"/api/v1/subtitle/{task_id}")
-            assert status_response.status_code == status.HTTP_200_OK
-            task_data = status_response.json()
-
-            if task_data["status"] == TaskStatus.COMPLETED:
-                # 3. 如果任务完成，尝试下载结果
-                if task_data.get("output_path"):
-                    download_response = client.get(
-                        f"/api/v1/subtitle/{task_id}/download"
-                    )
-                    # 如果文件存在，应该能下载
-                    if download_response.status_code == status.HTTP_200_OK:
-                        assert len(download_response.content) > 0
-                break
-            elif task_data["status"] == TaskStatus.FAILED:
-                # 任务失败，检查错误信息
-                assert "error" in task_data or "message" in task_data
-                break
-
-            time.sleep(0.5)
-            wait_time += 0.5
+        # 2. 等待任务处理（状态查询端点已删除，简化测试）
+        time.sleep(2)
+        
+        # 3. 尝试下载结果（如果任务完成）
+        download_response = client.get(f"/api/v1/subtitle/{task_id}/download")
+        # 如果文件存在，应该能下载；如果不存在，可能任务还在处理中
+        if download_response.status_code == status.HTTP_200_OK:
+            assert len(download_response.content) > 0
 
     def test_subtitle_request_validation(self, client):
         """测试请求参数验证"""
@@ -267,21 +217,8 @@ class TestSubtitleAPI:
         assert create_response.status_code == status.HTTP_200_OK
         task_id = create_response.json()["task_id"]
 
-        # 等待一段时间让任务开始处理
+        # 等待一段时间让任务开始处理（状态查询端点已删除，简化测试）
         time.sleep(1)
-
-        # 检查任务状态和进度
-        status_response = client.get(f"/api/v1/subtitle/{task_id}")
-        assert status_response.status_code == status.HTTP_200_OK
-        task_data = status_response.json()
-
-        # 任务应该至少已经开始或完成
-        assert task_data["status"] in [
-            TaskStatus.PENDING,
-            TaskStatus.RUNNING,
-            TaskStatus.COMPLETED,
-            TaskStatus.FAILED,
-        ]
         assert "progress" in task_data
         assert 0 <= task_data["progress"] <= 100
 
@@ -401,17 +338,8 @@ class TestSubtitleAPI:
         assert response.status_code == status.HTTP_200_OK
         task_id = response.json()["task_id"]
 
-        # 等待一下让后台任务执行
+        # 等待一下让后台任务执行（状态查询端点已删除，简化测试）
         time.sleep(2)
-
-        # 检查任务状态，应该失败
-        status_response = client.get(f"/api/v1/subtitle/{task_id}")
-        assert status_response.status_code == status.HTTP_200_OK
-        task_data = status_response.json()
-
-        # 任务可能失败或仍在处理中
-        if task_data["status"] == TaskStatus.FAILED:
-            assert "error" in task_data or "message" in task_data
 
     def test_subtitle_concurrent_requests(self, client, sample_srt_file):
         """测试并发请求"""
@@ -434,13 +362,10 @@ class TestSubtitleAPI:
         assert len(task_ids) == 5
         assert len(set(task_ids)) == 5  # 所有任务 ID 应该唯一
 
-        # 验证所有任务状态
-        for task_id in task_ids:
-            status_response = client.get(f"/api/v1/subtitle/{task_id}")
-            assert status_response.status_code == status.HTTP_200_OK
+        # 验证所有任务都创建成功（任务状态通过其他方式验证）
 
     def test_subtitle_task_status_transitions(self, client, sample_srt_file):
-        """测试任务状态转换"""
+        """测试任务状态转换（已删除状态查询端点，此测试已简化）"""
         request_data = {
             "subtitle_path": sample_srt_file,
             "config": {
@@ -452,32 +377,8 @@ class TestSubtitleAPI:
 
         create_response = client.post("/api/v1/subtitle", json=request_data)
         task_id = create_response.json()["task_id"]
-
-        # 初始状态应该是 PENDING
-        status_response = client.get(f"/api/v1/subtitle/{task_id}")
-        initial_data = status_response.json()
-        assert initial_data["status"] == TaskStatus.PENDING
-
-        # 等待任务处理
-        max_wait = 5
-        wait_time = 0
-        while wait_time < max_wait:
-            status_response = client.get(f"/api/v1/subtitle/{task_id}")
-            task_data = status_response.json()
-
-            # 状态应该从 PENDING -> RUNNING -> COMPLETED/FAILED
-            assert task_data["status"] in [
-                TaskStatus.PENDING,
-                TaskStatus.RUNNING,
-                TaskStatus.COMPLETED,
-                TaskStatus.FAILED,
-            ]
-
-            if task_data["status"] in [TaskStatus.COMPLETED, TaskStatus.FAILED]:
-                break
-
-            time.sleep(0.5)
-            wait_time += 0.5
+        assert task_id is not None
+        # 任务状态转换测试已移除，因为状态查询端点已删除
 
     def test_subtitle_with_max_word_count(self, client, sample_srt_file):
         """测试最大字数配置"""
@@ -558,24 +459,14 @@ class TestSubtitleAPI:
         create_response = client.post("/api/v1/subtitle", json=request_data)
         task_id = create_response.json()["task_id"]
 
-        # 等待任务完成
-        max_wait = 10
-        wait_time = 0
-        while wait_time < max_wait:
-            status_response = client.get(f"/api/v1/subtitle/{task_id}")
-            task_data = status_response.json()
-
-            if task_data["status"] == TaskStatus.COMPLETED:
-                # 尝试下载
-                if task_data.get("output_path"):
-                    download_response = client.get(
-                        f"/api/v1/subtitle/{task_id}/download"
-                    )
-                    if download_response.status_code == status.HTTP_200_OK:
-                        assert len(download_response.content) > 0
-                        assert download_response.headers["content-type"] == "application/octet-stream"
-                break
-            elif task_data["status"] == TaskStatus.FAILED:
+        # 等待任务完成（状态查询端点已删除，简化测试）
+        time.sleep(3)
+        
+        # 尝试下载
+        download_response = client.get(f"/api/v1/subtitle/{task_id}/download")
+        if download_response.status_code == status.HTTP_200_OK:
+            assert len(download_response.content) > 0
+            assert download_response.headers["content-type"] == "application/octet-stream"
                 break
 
             time.sleep(0.5)

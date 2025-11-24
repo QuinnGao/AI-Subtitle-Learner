@@ -7,9 +7,6 @@ from pathlib import Path
 import json
 from app.core.constants import TaskStatus
 from app.schemas.subtitle import (
-    SubtitleResponse,
-    TranscribeTaskInfo,
-    VideoTaskInfo,
     DictionaryQueryRequest,
     DictionaryQueryResponse,
 )
@@ -21,74 +18,6 @@ router = APIRouter()
 task_manager = get_task_manager()
 dictionary_service = DictionaryService()
 logger = setup_logger("subtitle_router")
-
-
-@router.get("/subtitle/{task_id}", response_model=SubtitleResponse)
-async def get_subtitle_task(task_id: str):
-    """获取字幕处理任务状态"""
-    logger.info(f"查询任务状态: task_id={task_id}")
-    task = task_manager.get_task(task_id)
-    if not task:
-        logger.warning(f"任务不存在: task_id={task_id}")
-        raise HTTPException(status_code=404, detail="任务不存在")
-    logger.info(
-        f"任务状态: task_id={task_id}, status={task.status}, progress={task.progress}"
-    )
-
-    # 从 TaskManager 获取关联的转录任务ID和视频下载任务ID
-    transcribe_task_id = task_manager.get_task_relation(task_id, "transcribe_task_id")
-    video_task_id = task_manager.get_task_relation(task_id, "video_task_id")
-
-    # 获取转录任务状态（如果存在）
-    transcribe_task = None
-    if transcribe_task_id:
-        transcribe_task_obj = task_manager.get_task(transcribe_task_id)
-        if transcribe_task_obj:
-            transcribe_task = TranscribeTaskInfo(
-                task_id=transcribe_task_id,
-                status=transcribe_task_obj.status,
-                progress=transcribe_task_obj.progress,
-                message=transcribe_task_obj.message,
-            )
-            logger.debug(
-                f"[任务 {task_id}] 关联转录任务状态: "
-                f"transcribe_task_id={transcribe_task_id}, status={transcribe_task_obj.status}"
-            )
-        else:
-            logger.warning(f"转录任务不存在: transcribe_task_id={transcribe_task_id}")
-
-    # 获取视频下载任务状态（如果存在）
-    video_task = None
-    if video_task_id:
-        video_task_obj = task_manager.get_task(video_task_id)
-        if video_task_obj:
-            video_task = VideoTaskInfo(
-                task_id=video_task_id,
-                status=video_task_obj.status,
-                progress=video_task_obj.progress,
-                message=video_task_obj.message,
-            )
-            logger.debug(
-                f"[任务 {task_id}] 关联视频下载任务状态: "
-                f"video_task_id={video_task_id}, status={video_task_obj.status}"
-            )
-        else:
-            logger.warning(f"视频下载任务不存在: video_task_id={video_task_id}")
-
-    # 转换为 SubtitleResponse
-    return SubtitleResponse(
-        task_id=task.task_id,
-        status=task.status,
-        queued_at=task.queued_at,
-        started_at=task.started_at,
-        completed_at=task.completed_at,
-        progress=task.progress,
-        message=task.message,
-        error=task.error,
-        output_path=task.output_path,
-        transcribe_task=transcribe_task,
-        video_task=video_task,
-    )
 
 
 @router.get("/subtitle/{task_id}/content")
