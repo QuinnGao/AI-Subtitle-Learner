@@ -12,8 +12,6 @@ from app.schemas.common import TaskResponse
 class TranscribeModel(str, Enum):
     """转录模型"""
 
-    BIJIAN = "bijian"
-    JIANYING = "jianying"
     WHISPERX = "whisperx"
 
 

@@ -114,8 +114,6 @@ def get_available_transcribe_models() -> list["TranscribeModelEnum"]:
     """
     获取当前平台可用的转录模型列表
 
-    macOS 上不支持 FasterWhisper，因为它依赖 CUDA/CuDNN
-
     Returns:
         list[TranscribeModelEnum]: 可用的转录模型列表
     """

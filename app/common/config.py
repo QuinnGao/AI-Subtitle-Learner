@@ -128,7 +128,7 @@ class Config:
     transcribe_model = OptionsConfigItem(
         "Transcribe",
         "TranscribeModel",
-        TranscribeModelEnum.BIJIAN,
+        TranscribeModelEnum.WHISPERX,
     )
     transcribe_output_format = OptionsConfigItem(
         "Transcribe",

@@ -42,8 +42,6 @@ class LLMServiceEnum(Enum):
 class TranscribeModelEnum(Enum):
     """转录模型"""
 
-    BIJIAN = "B 接口"
-    JIANYING = "J 接口"
     WHISPERX = "WhisperX ✨"
 
 

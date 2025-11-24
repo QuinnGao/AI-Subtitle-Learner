@@ -38,7 +38,7 @@ class ChunkedASR:
     示例:
         >>> # 使用 ASR 类和参数创建分块转录器
         >>> chunked_asr = ChunkedASR(
-        ...     asr_class=BcutASR,
+        ...     asr_class=WhisperXASR,
         ...     audio_path="long_audio.mp3",
         ...     asr_kwargs={"need_word_time_stamp": True},
         ...     chunk_length=1200
@@ -46,7 +46,7 @@ class ChunkedASR:
         >>> result = chunked_asr.run(callback)
 
     Args:
-        asr_class: ASR 类（非实例），如 BcutASR, JianYingASR
+        asr_class: ASR 类（非实例），如 WhisperXASR
         audio_path: 音频文件路径
         asr_kwargs: 传递给 ASR 构造函数的参数字典
         chunk_length: 每块长度（秒），默认 480 秒（8分钟）
