@@ -115,6 +115,7 @@ class BaseTranslator(ABC):
             cached_result_bytes = self._cache.get(cache_key)
             if cached_result_bytes is not None:
                 import pickle
+
                 cached_result = pickle.loads(cached_result_bytes)
                 return cached_result
 
@@ -124,6 +125,7 @@ class BaseTranslator(ABC):
                 self.update_callback(result)
 
             import pickle
+
             result_bytes = pickle.dumps(result)
             self._cache.setex(cache_key, 86400 * 7, result_bytes)
             return result

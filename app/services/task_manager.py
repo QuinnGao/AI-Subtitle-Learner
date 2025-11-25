@@ -136,47 +136,6 @@ class TaskManager:
             db.close()
             self._db = None
 
-    def set_task_relation(self, task_id: str, relation_type: str, related_task_id: str):
-        """设置任务关联关系
-
-        Args:
-            task_id: 主任务ID
-            relation_type: 关联类型（如 "transcribe_task_id", "subtitle_task_id"）
-            related_task_id: 关联的任务ID
-        """
-        db = self._get_db()
-        try:
-            # 检查是否已存在相同的关联关系
-            existing = (
-                db.query(TaskRelation)
-                .filter(
-                    TaskRelation.task_id == task_id,
-                    TaskRelation.relation_type == relation_type,
-                )
-                .first()
-            )
-            if existing:
-                existing.related_task_id = related_task_id
-            else:
-                relation = TaskRelation(
-                    task_id=task_id,
-                    relation_type=relation_type,
-                    related_task_id=related_task_id,
-                )
-                db.add(relation)
-            db.commit()
-            logger.debug(
-                f"设置任务关联: task_id={task_id}, relation_type={relation_type}, "
-                f"related_task_id={related_task_id}"
-            )
-        except Exception as e:
-            db.rollback()
-            logger.error(f"设置任务关联失败: {str(e)}", exc_info=True)
-            raise
-        finally:
-            db.close()
-            self._db = None
-
     def set_task_relations(self, task_id: str, relations: dict[str, str]):
         """批量设置任务关联关系
 
@@ -238,42 +197,6 @@ class TaskManager:
             if relation:
                 return relation.related_task_id
             return None
-        finally:
-            db.close()
-            self._db = None
-
-    def get_task_relations(self, task_id: str) -> dict[str, str]:
-        """获取任务的所有关联关系
-
-        Args:
-            task_id: 主任务ID
-
-        Returns:
-            关联关系字典
-        """
-        db = self._get_db()
-        try:
-            relations = (
-                db.query(TaskRelation).filter(TaskRelation.task_id == task_id).all()
-            )
-            return {rel.relation_type: rel.related_task_id for rel in relations}
-        finally:
-            db.close()
-            self._db = None
-
-    def delete_task(self, task_id: str):
-        """删除任务（级联删除关联关系）"""
-        db = self._get_db()
-        try:
-            task = db.query(Task).filter(Task.task_id == task_id).first()
-            if task:
-                db.delete(task)
-                db.commit()
-                logger.info(f"删除任务: task_id={task_id}")
-        except Exception as e:
-            db.rollback()
-            logger.error(f"删除任务失败: {str(e)}", exc_info=True)
-            raise
         finally:
             db.close()
             self._db = None

@@ -200,8 +200,6 @@ class TranscribeService:
         final_path = await asyncio.to_thread(asr_data.save, output_path, use_minio=True)
 
         # 验证文件是否保存成功（检查 MinIO）
-        from app.core.storage import get_storage
-
         storage = get_storage()
         if storage.file_exists(final_path):
             logger.info(f"[任务 {task_id}] 字幕文件保存成功到 MinIO: {final_path}")

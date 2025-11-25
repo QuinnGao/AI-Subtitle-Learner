@@ -55,7 +55,10 @@ class BaseASR:
         self.audio_duration = self._get_audio_duration()
 
     def _set_data(self):
-        """Load audio data and compute CRC32 hash for cache key."""
+        """Load audio data and compute CRC32 hash for cache key.
+
+        支持从 MinIO 读取音频文件。
+        """
         if isinstance(self.audio_path, bytes):
             self.file_binary = self.audio_path
         elif isinstance(self.audio_path, str):
@@ -63,9 +66,33 @@ class BaseASR:
             assert ext in self.SUPPORTED_SOUND_FORMAT, (
                 f"Unsupported sound format: {ext}"
             )
-            assert os.path.exists(self.audio_path), f"File not found: {self.audio_path}"
-            with open(self.audio_path, "rb") as f:
-                self.file_binary = f.read()
+
+            # 检查是否是 MinIO 对象
+            from app.core.storage import get_storage
+            import tempfile
+            from pathlib import Path
+
+            storage = get_storage()
+            if storage.file_exists(self.audio_path):
+                # 从 MinIO 下载到临时文件
+                logger.debug(f"从 MinIO 下载音频文件: {self.audio_path}")
+                with tempfile.NamedTemporaryFile(
+                    delete=False, suffix=Path(self.audio_path).suffix
+                ) as tmp_file:
+                    tmp_path = tmp_file.name
+                storage.download_file(self.audio_path, tmp_path)
+                try:
+                    with open(tmp_path, "rb") as f:
+                        self.file_binary = f.read()
+                finally:
+                    # 清理临时文件
+                    Path(tmp_path).unlink(missing_ok=True)
+            elif os.path.exists(self.audio_path):
+                # 本地文件
+                with open(self.audio_path, "rb") as f:
+                    self.file_binary = f.read()
+            else:
+                raise FileNotFoundError(f"File not found: {self.audio_path}")
         else:
             raise ValueError("audio_path must be provided as string or bytes")
         crc32_value = zlib.crc32(self.file_binary) & 0xFFFFFFFF

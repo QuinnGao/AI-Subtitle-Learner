@@ -12,8 +12,8 @@ import yt_dlp
 
 from app.config import settings
 from app.services.task_manager import get_task_manager
-from app.tasks.transcribe_tasks import transcribe_task
-from app.tasks.subtitle_tasks import subtitle_task
+from app.celery.tasks.transcribe_tasks import transcribe_task
+from app.celery.tasks.subtitle_tasks import subtitle_task
 from app.schemas.transcribe import TranscribeRequest, TranscribeConfig, TranscribeModel
 from app.schemas.subtitle import SubtitleRequest, SubtitleConfig
 from app.core.constants import TaskStatus

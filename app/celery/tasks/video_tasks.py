@@ -1,11 +1,12 @@
 """
 视频下载相关 Celery 任务
 """
+
 import asyncio
 from pathlib import Path
 
-from app.celery_app import celery_app
-from app.services.video_download_service import VideoDownloadService
+from app.celery import celery_app
+from app.celery.services.video_download_service import VideoDownloadService
 from app.services.task_manager import get_task_manager
 from app.core.utils.logger import setup_logger
 
@@ -15,7 +16,7 @@ video_download_service = VideoDownloadService()
 
 
 @celery_app.task(
-    name="app.tasks.video.download_audio",
+    name="app.celery.tasks.video.download_audio",
     bind=True,
     max_retries=3,
     default_retry_delay=60,
@@ -26,7 +27,7 @@ video_download_service = VideoDownloadService()
 )
 def download_audio_task(self, task_id: str, url: str, work_dir: str = None):
     """下载音频任务（Celery 任务）
-    
+
     Args:
         task_id: 任务ID
         url: 视频URL
@@ -34,7 +35,7 @@ def download_audio_task(self, task_id: str, url: str, work_dir: str = None):
     """
     try:
         logger.info(f"[Celery Task] 开始执行下载音频任务: task_id={task_id}, url={url}")
-        
+
         # 在事件循环中运行异步函数
         loop = asyncio.new_event_loop()
         asyncio.set_event_loop(loop)
@@ -44,7 +45,7 @@ def download_audio_task(self, task_id: str, url: str, work_dir: str = None):
             )
         finally:
             loop.close()
-        
+
         logger.info(f"[Celery Task] 下载音频任务完成: task_id={task_id}")
     except Exception as e:
         logger.error(
@@ -59,5 +60,4 @@ def download_audio_task(self, task_id: str, url: str, work_dir: str = None):
         )
         # 重新抛出异常以触发重试
         raise
-
 
