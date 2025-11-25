@@ -186,10 +186,10 @@ uv run uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 
 ```bash
 # 启动 Worker（处理异步任务）
-celery -A app.celery_app worker --loglevel=info --concurrency=2 -Q default,video,transcribe,subtitle
+celery -A app.celery worker --loglevel=info --concurrency=2 --max-tasks-per-child=10 -Q default,video,transcribe,subtitle
 
 # 或使用 uv run
-uv run celery -A app.celery_app worker --loglevel=info --concurrency=2 -Q default,video,transcribe,subtitle
+uv run celery -A app.celery worker --loglevel=info --concurrency=2 --max-tasks-per-child=10 -Q default,video,transcribe,subtitle
 ```
 
 #### 8. 启动前端服务（可选）
@@ -208,6 +208,10 @@ npm run dev
 ┌─────────────┐     ┌─────────────┐     ┌─────────────┐
 │   FastAPI   │────▶│  RabbitMQ   │────▶│   Celery    │
 │   (API)     │     │  (Broker)   │     │  (Worker)   │
+│             │     │             │     │             │
+│  - 接收请求  │     │  - 任务队列  │     │  - 下载视频  │
+│  - 创建任务  │     │  - 消息分发  │     │  - 转录音频  │
+│  - 查询状态  │     │             │     │  - 处理字幕  │
 └─────────────┘     └─────────────┘     └─────────────┘
       │                    │                    │
       │                    │                    │
@@ -215,17 +219,24 @@ npm run dev
 ┌─────────────┐     ┌─────────────┐     ┌─────────────┐
 │ PostgreSQL  │     │    Redis    │     │    MinIO    │
 │ (数据库)     │     │   (缓存)    │     │  (对象存储)  │
+│             │     │             │     │             │
+│ - 任务状态   │     │ - ASR缓存   │     │ - 音频文件   │
+│ - 任务关系   │     │ - 翻译缓存  │     │ - 字幕文件   │
+│ - 元数据     │     │ - 结果后端  │     │ - 处理结果   │
 └─────────────┘     └─────────────┘     └─────────────┘
 ```
 
 ### 任务流程
 
 1. **API 接收请求** → 创建任务记录（PostgreSQL）
-2. **发送任务到队列** → RabbitMQ
+2. **发送任务到队列** → RabbitMQ（按任务类型路由到不同队列）
 3. **Worker 处理任务** → Celery Worker 从队列获取任务
-4. **存储文件** → MinIO 对象存储
-5. **缓存结果** → Redis 缓存计算结果
-6. **更新任务状态** → PostgreSQL
+   - `video` 队列：视频下载任务
+   - `transcribe` 队列：音频转录任务
+   - `subtitle` 队列：字幕处理任务
+4. **存储文件** → MinIO 对象存储（音频、字幕、处理结果）
+5. **缓存结果** → Redis 缓存计算结果（ASR、翻译、字典查询）
+6. **更新任务状态** → PostgreSQL（任务状态、进度、关联关系）
 
 ### 数据流
 
@@ -296,7 +307,19 @@ web ──→ api
 │   ├── __init__.py
 │   ├── main.py              # FastAPI 应用入口
 │   ├── config.py            # 应用配置
-│   ├── celery_app.py        # Celery 应用配置
+│   ├── celery/              # Celery 应用模块
+│   │   ├── __init__.py      # Celery 模块导出
+│   │   ├── app.py           # Celery 应用配置
+│   │   ├── tasks/           # Celery 任务定义
+│   │   │   ├── __init__.py
+│   │   │   ├── video_tasks.py      # 视频下载任务
+│   │   │   ├── transcribe_tasks.py # 转录任务
+│   │   │   └── subtitle_tasks.py   # 字幕处理任务
+│   │   └── services/       # Celery 任务使用的服务层
+│   │       ├── __init__.py
+│   │       ├── video_download_service.py
+│   │       ├── transcribe_service.py
+│   │       └── subtitle_service.py
 │   ├── routers/             # API 路由模块
 │   │   ├── health.py        # 健康检查路由
 │   │   ├── video.py         # 视频分析路由
@@ -304,14 +327,7 @@ web ──→ api
 │   │   └── dictionary.py    # 字典查询路由
 │   ├── services/            # 业务逻辑服务层
 │   │   ├── task_manager.py  # 任务管理器（数据库持久化）
-│   │   ├── video_download_service.py
-│   │   ├── transcribe_service.py
-│   │   ├── subtitle_service.py
 │   │   └── dictionary_service.py
-│   ├── tasks/               # Celery 任务定义
-│   │   ├── video_tasks.py   # 视频下载任务
-│   │   ├── transcribe_tasks.py  # 转录任务
-│   │   └── subtitle_tasks.py   # 字幕处理任务
 │   ├── database/            # 数据库模块
 │   │   ├── models.py        # SQLAlchemy 模型
 │   │   ├── base.py          # 数据库配置
@@ -323,7 +339,9 @@ web ──→ api
 │   │   ├── analyze/         # 文本分析模块
 │   │   ├── llm/             # 大语言模型模块
 │   │   ├── storage/         # 存储模块
-│   │   │   └── minio_storage.py  # MinIO 存储服务
+│   │   │   ├── __init__.py
+│   │   │   ├── minio_storage.py  # MinIO 存储服务
+│   │   │   └── init_minio.py     # MinIO 初始化
 │   │   └── utils/           # 工具函数
 │   └── schemas/             # Pydantic 数据验证模式
 ├── web/                      # Next.js 前端应用
@@ -421,20 +439,28 @@ print(response.json())
 
 ### 添加新的 Celery 任务
 
-1. 在 `app/tasks/` 目录下创建新的任务文件
-2. 使用 `@celery_app.task` 装饰器定义任务
-3. 在路由中调用 `task.delay()` 发送任务到队列
+1. 在 `app/celery/tasks/` 目录下创建新的任务文件
+2. 在 `app/celery/services/` 目录下创建对应的服务文件（业务逻辑）
+3. 使用 `@celery_app.task` 装饰器定义任务
+4. 在路由中调用 `task.delay()` 发送任务到队列
 
 示例：
 
 ```python
-# app/tasks/my_tasks.py
-from app.celery_app import celery_app
+# app/celery/tasks/my_tasks.py
+from app.celery import celery_app
+from app.celery.services.my_service import MyService
 
-@celery_app.task(bind=True, max_retries=3)
+my_service = MyService()
+
+@celery_app.task(bind=True, name="my_task", max_retries=3)
 def my_task(self, task_id: str, data: dict):
-    # 处理任务逻辑
-    pass
+    """Celery 任务：执行业务逻辑"""
+    try:
+        my_service.process_task(task_id, data)
+    except Exception as e:
+        # 任务失败时重试
+        raise self.retry(exc=e, countdown=60)
 ```
 
 ### 添加新的路由
@@ -548,13 +574,16 @@ docker-compose up -d --scale worker=3
 
 ```bash
 # 查看任务状态
-celery -A app.celery_app inspect active
+celery -A app.celery inspect active
 
 # 查看注册的任务
-celery -A app.celery_app inspect registered
+celery -A app.celery inspect registered
 
 # 查看 Worker 状态
-celery -A app.celery_app inspect stats
+celery -A app.celery inspect stats
+
+# 查看任务结果
+celery -A app.celery result <task_id>
 ```
 
 ## 监控与运维

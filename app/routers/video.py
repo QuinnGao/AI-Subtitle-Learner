@@ -10,7 +10,7 @@ from app.schemas.video_download import (
     TranscribeTaskInfo,
 )
 from app.services.task_manager import get_task_manager
-from app.tasks.video_tasks import download_audio_task
+from app.celery.tasks.video_tasks import download_audio_task
 from app.core.constants import TaskStatus
 from app.core.utils.logger import setup_logger
 

@@ -6,67 +6,26 @@ import os
 from pathlib import Path
 from typing import Optional
 
+from pydantic import ConfigDict
 from pydantic_settings import BaseSettings
 
 
 class Settings(BaseSettings):
     """应用配置"""
 
+    model_config = ConfigDict(
+        env_file=".env",
+        case_sensitive=False,
+        extra="ignore",  # 忽略未定义的额外字段
+    )
+
     # 基础配置
-    app_name: str = "视频字幕处理 API"
-    debug: bool = False
     log_level: str = "INFO"
 
     # 工作目录
     work_dir: Path = Path("./workspace")
     model_dir: Path = Path("./models")
     log_dir: Path = Path("./logs")
-
-    # 文件上传配置
-    max_upload_size: int = 1024 * 1024 * 1024 * 5  # 5GB
-    allowed_video_extensions: list[str] = [
-        ".mp4",
-        ".webm",
-        ".ogm",
-        ".mov",
-        ".mkv",
-        ".avi",
-        ".wmv",
-        ".flv",
-        ".m4v",
-        ".ts",
-        ".mpg",
-        ".mpeg",
-    ]
-    allowed_audio_extensions: list[str] = [
-        ".aac",
-        ".ac3",
-        ".aiff",
-        ".amr",
-        ".ape",
-        ".au",
-        ".flac",
-        ".m4a",
-        ".mp2",
-        ".mp3",
-        ".mka",
-        ".oga",
-        ".ogg",
-        ".opus",
-        ".ra",
-        ".wav",
-        ".wma",
-    ]
-    allowed_subtitle_extensions: list[str] = [".srt", ".ass", ".vtt"]
-
-    # 任务配置
-    max_concurrent_tasks: int = 5
-    task_timeout: int = 3600  # 1小时
-
-    # 默认配置
-    default_transcribe_model: str = "whisperx"
-    default_transcribe_language: str = "auto"
-    default_output_format: str = "srt"
 
     # LLM API 配置（从环境变量读取，支持 Docker 和本地运行）
     llm_api_base: Optional[str] = None
@@ -99,10 +58,6 @@ class Settings(BaseSettings):
     max_word_count_cjk: int = 25
     max_word_count_english: int = 20
 
-    class Config:
-        env_file = ".env"
-        case_sensitive = False
-
 
 settings = Settings()
 
@@ -127,9 +82,6 @@ SUBTITLE_STYLE_PATH.mkdir(parents=True, exist_ok=True)
 
 # 日志级别（供 core 模块使用）
 LOG_LEVEL = settings.log_level
-
-# 版本号（供 core 模块使用）
-VERSION = "1.0.0"
 
 # LLM API 配置（从环境变量读取，优先使用新名称，兼容旧名称）
 LLM_API_BASE = (

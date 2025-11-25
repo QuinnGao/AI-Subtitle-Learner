@@ -3,7 +3,6 @@
 """
 
 from pathlib import Path
-import json
 
 from app.schemas.subtitle import SubtitleRequest
 from app.services.task_manager import get_task_manager
@@ -103,38 +102,84 @@ class SubtitleService:
         return self.cache_dir / cache_filename
 
     def _load_from_cache(self, cache_path: Path):
-        """从缓存文件加载数据
+        """从缓存加载数据（支持 MinIO）
 
         Args:
-            cache_path: 缓存文件路径
+            cache_path: 缓存文件路径（本地路径格式，用于生成 MinIO 对象名称）
 
         Returns:
             缓存的数据，如果文件不存在则返回 None
         """
+        from app.core.storage import get_storage
+        import tempfile
+        import json
+        
+        # 生成 MinIO 对象名称（使用 cache/ 前缀）
+        object_name = f"cache/{str(cache_path).replace('\\', '/').lstrip('/')}"
+        
+        storage = get_storage()
+        if storage.file_exists(object_name):
+            try:
+                # 从 MinIO 下载到临时文件
+                with tempfile.NamedTemporaryFile(delete=False, suffix=".json") as tmp_file:
+                    tmp_path = tmp_file.name
+                storage.download_file(object_name, tmp_path)
+                try:
+                    with open(tmp_path, "r", encoding="utf-8") as f:
+                        return json.load(f)
+                finally:
+                    Path(tmp_path).unlink(missing_ok=True)
+            except Exception as e:
+                logger.warning(f"从 MinIO 加载缓存失败: {object_name}, 错误: {e}")
+                return None
+        
+        # 兼容：检查本地文件（向后兼容）
         if cache_path.exists():
             try:
-                import json
-
                 with open(cache_path, "r", encoding="utf-8") as f:
                     return json.load(f)
             except Exception as e:
-                logger.warning(f"加载缓存失败: {cache_path}, 错误: {e}")
+                logger.warning(f"加载本地缓存失败: {cache_path}, 错误: {e}")
                 return None
+        
         return None
 
     def _save_to_cache(self, cache_path: Path, data):
-        """保存数据到缓存文件
+        """保存数据到缓存（MinIO）
 
         Args:
-            cache_path: 缓存文件路径
+            cache_path: 缓存文件路径（本地路径格式，用于生成 MinIO 对象名称）
             data: 要保存的数据（必须是可 JSON 序列化的）
         """
+        from app.core.storage import get_storage
+        import tempfile
+        import json
+        
+        # 生成 MinIO 对象名称（使用 cache/ 前缀）
+        object_name = f"cache/{str(cache_path).replace('\\', '/').lstrip('/')}"
+        
         try:
-            cache_path.parent.mkdir(parents=True, exist_ok=True)
-            with open(cache_path, "w", encoding="utf-8") as f:
-                json.dump(data, f, ensure_ascii=False, indent=2)
+            # 保存到临时文件，然后上传到 MinIO
+            with tempfile.NamedTemporaryFile(mode="w", delete=False, suffix=".json", encoding="utf-8") as tmp_file:
+                tmp_path = tmp_file.name
+                json.dump(data, tmp_file, ensure_ascii=False, indent=2)
+            
+            storage = get_storage()
+            storage.upload_file(tmp_path, object_name=object_name)
+            logger.debug(f"缓存已保存到 MinIO: {object_name}")
         except Exception as e:
-            logger.warning(f"保存缓存失败: {cache_path}, 错误: {e}")
+            logger.warning(f"保存缓存到 MinIO 失败: {object_name}, 错误: {e}")
+            # 失败时尝试保存到本地（向后兼容）
+            try:
+                cache_path.parent.mkdir(parents=True, exist_ok=True)
+                with open(cache_path, "w", encoding="utf-8") as f:
+                    json.dump(data, f, ensure_ascii=False, indent=2)
+            except Exception as e2:
+                logger.warning(f"保存本地缓存也失败: {cache_path}, 错误: {e2}")
+        finally:
+            # 清理临时文件
+            if 'tmp_path' in locals():
+                Path(tmp_path).unlink(missing_ok=True)
 
     def _get_subtitle_path_from_db(self, task_id: str) -> Path:
         """从数据库获取字幕文件路径

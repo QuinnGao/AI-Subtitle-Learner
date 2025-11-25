@@ -122,18 +122,38 @@ def auto_wrap_ass_file(
     """
     处理ASS文件，为文本添加自动换行
 
+    支持从 MinIO 读取 ASS 文件。
+
     Args:
-        input_file: 输入ASS文件路径
-        output_file: 输出ASS文件路径，如果为None则覆盖输入文件
+        input_file: 输入ASS文件路径或 MinIO 对象名称
+        output_file: 输出ASS文件路径，如果为None则覆盖输入文件（或保存到 MinIO）
         video_width: 视频宽度，如果提供则覆盖ASS文件中的设置
         video_height: 视频高度，如果提供则覆盖ASS文件中的设置
     """
-    if output_file is None:
-        output_file = input_file
-
+    from pathlib import Path
+    import tempfile
+    from app.core.storage import get_storage
+    
+    storage = get_storage()
+    input_is_minio = storage.file_exists(input_file)
+    
+    # 如果输入是 MinIO 对象，下载到临时文件
+    if input_is_minio:
+        with tempfile.NamedTemporaryFile(delete=False, suffix=".ass") as tmp_file:
+            tmp_input = tmp_file.name
+        storage.download_file(input_file, tmp_input)
+        actual_input = tmp_input
+    else:
+        actual_input = input_file
+    
     # 读取ASS文件
-    with open(input_file, "r", encoding="utf-8") as f:
-        ass_content = f.read()
+    try:
+        with open(actual_input, "r", encoding="utf-8") as f:
+            ass_content = f.read()
+    finally:
+        # 如果是 MinIO 文件，清理临时文件
+        if input_is_minio:
+            Path(actual_input).unlink(missing_ok=True)
 
     # 解析字体大小（在修改分辨率之前）
     play_res_x, font_sizes = parse_ass_info(ass_content)
@@ -173,7 +193,25 @@ def auto_wrap_ass_file(
     )
 
     # 保存处理后的文件
-    with open(output_file, "w", encoding="utf-8") as f:
-        f.write(processed_content)
-
-    return output_file
+    if output_file is None:
+        output_file = input_file
+    
+    # 如果输入是 MinIO 对象，输出也应该保存到 MinIO
+    if input_is_minio:
+        # 保存到临时文件，然后上传到 MinIO
+        with tempfile.NamedTemporaryFile(mode="w", delete=False, suffix=".ass", encoding="utf-8") as tmp_file:
+            tmp_output = tmp_file.name
+            tmp_file.write(processed_content)
+        
+        try:
+            # 上传到 MinIO（使用原始输入路径作为对象名称）
+            final_output = storage.upload_file(tmp_output, object_name=input_file)
+            return final_output
+        finally:
+            # 清理临时文件
+            Path(tmp_output).unlink(missing_ok=True)
+    else:
+        # 本地文件
+        with open(output_file, "w", encoding="utf-8") as f:
+            f.write(processed_content)
+        return output_file

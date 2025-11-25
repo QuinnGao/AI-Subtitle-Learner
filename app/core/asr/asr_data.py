@@ -13,6 +13,9 @@ from langdetect import LangDetectException, detect
 from ..entities import SubtitleLayoutEnum
 from ..utils.text_utils import is_mainly_cjk
 from ..storage import get_storage
+from app.core.utils.logger import setup_logger
+
+logger = setup_logger("asr")
 
 # 多语言分词模式(支持词级和字符级语言)
 _WORD_SPLIT_PATTERN = (
@@ -554,8 +557,10 @@ class ASRData:
     def from_subtitle_file(file_path: str) -> "ASRData":
         """Load ASRData from subtitle file.
 
+        支持从 MinIO 读取字幕文件。
+
         Args:
-            file_path: Subtitle file path (supports .srt, .vtt, .ass, .json)
+            file_path: Subtitle file path (supports .srt, .vtt, .ass, .json) or MinIO object name
 
         Returns:
             Parsed ASRData instance
@@ -565,13 +570,37 @@ class ASRData:
             ValueError: Unsupported file format
         """
         file_path_obj = Path(file_path)
-        if not file_path_obj.exists():
-            raise FileNotFoundError(f"File not found: {file_path_obj}")
 
-        try:
-            content = file_path_obj.read_text(encoding="utf-8")
-        except UnicodeDecodeError:
-            content = file_path_obj.read_text(encoding="gbk")
+        # 检查是否是 MinIO 对象
+        from app.core.storage import get_storage
+        import tempfile
+
+        storage = get_storage()
+        if storage.file_exists(file_path):
+            # 从 MinIO 下载到临时文件
+            logger.debug(f"从 MinIO 下载字幕文件: {file_path}")
+            with tempfile.NamedTemporaryFile(
+                delete=False, suffix=file_path_obj.suffix
+            ) as tmp_file:
+                tmp_path = tmp_file.name
+            storage.download_file(file_path, tmp_path)
+            try:
+                # 读取临时文件内容
+                try:
+                    content = Path(tmp_path).read_text(encoding="utf-8")
+                except UnicodeDecodeError:
+                    content = Path(tmp_path).read_text(encoding="gbk")
+            finally:
+                # 清理临时文件
+                Path(tmp_path).unlink(missing_ok=True)
+        elif file_path_obj.exists():
+            # 本地文件
+            try:
+                content = file_path_obj.read_text(encoding="utf-8")
+            except UnicodeDecodeError:
+                content = file_path_obj.read_text(encoding="gbk")
+        else:
+            raise FileNotFoundError(f"File not found: {file_path_obj}")
 
         suffix = file_path_obj.suffix.lower()
 

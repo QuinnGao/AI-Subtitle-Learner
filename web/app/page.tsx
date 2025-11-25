@@ -15,7 +15,11 @@ import { AnalysisHeader } from "@/components/analysis-header";
 import { InputView } from "@/components/input-view";
 import { ProcessingView } from "@/components/processing-view";
 import { DictionaryDrawer } from "@/components/dictionary-drawer";
-import type { SentenceData, TokenType, WordToken } from "@/components/subtitle-item";
+import type {
+  SentenceData,
+  TokenType,
+  WordToken,
+} from "@/components/subtitle-item";
 
 // ------------------------------------------------------------------
 // 类型定义：UI展示用的富文本结构
@@ -27,7 +31,9 @@ type AppState = "idle" | "processing" | "completed" | "error";
 // ------------------------------------------------------------------
 // 将后端返回的 JSON 数据转换为前端需要的格式
 // ------------------------------------------------------------------
-const convertSubtitleData = (backendData: SubtitleContentItem[]): SentenceData[] => {
+const convertSubtitleData = (
+  backendData: SubtitleContentItem[]
+): SentenceData[] => {
   return backendData.map((item) => {
     // 转换 tokens，如果没有 tokens 则从 original_text 创建简单的 tokens
     let tokens: WordToken[] = [];
@@ -120,7 +126,10 @@ export default function VideoLearningPage() {
           setProgress(statusRes.progress);
           setStatusMessage(statusRes.message || "Processing video...");
 
-          if (statusRes.status === "failed" || statusRes.status === "cancelled") {
+          if (
+            statusRes.status === "failed" ||
+            statusRes.status === "cancelled"
+          ) {
             clearInterval(pollInterval);
             setAppState("error");
             setErrorMsg(statusRes.error || "Task failed");
@@ -134,7 +143,9 @@ export default function VideoLearningPage() {
             // 注意：如果 subtitle_task 也是异步的，这里可能还需要一层轮询 subtitle status
             // 假设此时 video task completed 意味着字幕也准备好了
             if (statusRes.subtitle_task?.task_id) {
-              const subContent = await getSubtitleContent(statusRes.subtitle_task.task_id);
+              const subContent = await getSubtitleContent(
+                statusRes.subtitle_task.task_id
+              );
 
               // 转换后端返回的 JSON 数据
               if (Array.isArray(subContent.content)) {
@@ -192,17 +203,19 @@ export default function VideoLearningPage() {
   const renderCompletedView = () => {
     // 找到当前正在播放的句子索引
     const currentTimeMs = currentTime * 1000; // 转换为毫秒
-    const activeIndex = subtitleData.findIndex((s) => currentTime >= s.startTime && currentTime < s.endTime);
+    const activeIndex = subtitleData.findIndex(
+      (s) => currentTime >= s.startTime && currentTime < s.endTime
+    );
 
     return (
-      <div className="h-screen flex flex-col pt-4 pb-4 px-4">
+      <div className="flex h-screen flex-col px-4 pb-4 pt-4">
         {/* Header */}
         <AnalysisHeader onAnalyzeAnother={() => setAppState("idle")} />
 
         {/* 视频和字幕上下结构 */}
-        <div className="flex-1 flex flex-col gap-4 min-h-0">
+        <div className="flex min-h-0 flex-1 flex-col gap-4">
           {/* 1. 视频播放器区域 */}
-          <div className="relative aspect-video bg-black rounded-2xl overflow-hidden shadow-lg ring-1 ring-gray-900/5 group flex-shrink-0">
+          <div className="group relative aspect-video flex-shrink-0 overflow-hidden rounded-2xl bg-black shadow-lg ring-1 ring-gray-900/5">
             {url && (
               <>
                 <ReactPlayer
@@ -215,6 +228,7 @@ export default function VideoLearningPage() {
                   onPlay={() => setIsPlaying(true)}
                   onPause={() => setIsPlaying(false)}
                   onTimeUpdate={handleTimeUpdate}
+                  crossOrigin="anonymous"
                   config={{
                     youtube: {
                       playerVars: {
@@ -230,13 +244,19 @@ export default function VideoLearningPage() {
                 {/* 自定义播放/暂停按钮 */}
                 <button
                   onClick={() => setIsPlaying(!isPlaying)}
-                  className="absolute inset-0 flex items-center justify-center bg-black/20 hover:bg-black/30 transition-all duration-200 opacity-0 group-hover:opacity-100"
+                  className="absolute inset-0 flex items-center justify-center bg-black/20 opacity-0 transition-all duration-200 hover:bg-black/30 group-hover:opacity-100"
                 >
-                  <div className="w-20 h-20 rounded-full bg-white/90 hover:bg-white flex items-center justify-center shadow-lg transition-all duration-200 hover:scale-110">
+                  <div className="flex h-20 w-20 items-center justify-center rounded-full bg-white/90 shadow-lg transition-all duration-200 hover:scale-110 hover:bg-white">
                     {isPlaying ? (
-                      <Pause className="w-10 h-10 text-gray-900 ml-1" fill="currentColor" />
+                      <Pause
+                        className="ml-1 h-10 w-10 text-gray-900"
+                        fill="currentColor"
+                      />
                     ) : (
-                      <Play className="w-10 h-10 text-gray-900 ml-1" fill="currentColor" />
+                      <Play
+                        className="ml-1 h-10 w-10 text-gray-900"
+                        fill="currentColor"
+                      />
                     )}
                   </div>
                 </button>
@@ -258,26 +278,34 @@ export default function VideoLearningPage() {
         </div>
 
         {/* 字典抽屉/弹出框 */}
-        <DictionaryDrawer isOpen={isDictionaryOpen} onClose={() => setIsDictionaryOpen(false)} word={dictionaryWord} />
+        <DictionaryDrawer
+          isOpen={isDictionaryOpen}
+          onClose={() => setIsDictionaryOpen(false)}
+          word={dictionaryWord}
+        />
       </div>
     );
   };
 
   return (
     <div className="min-h-screen bg-gray-50 font-sans text-gray-900 selection:bg-blue-100">
-      <div className="max-w-screen-md mx-auto">
-        {appState === "idle" && <InputView url={url} onUrlChange={setUrl} onSubmit={handleAnalyze} />}
-        {appState === "processing" && <ProcessingView progress={progress} statusMessage={statusMessage} />}
+      <div className="mx-auto max-w-screen-md">
+        {appState === "idle" && (
+          <InputView url={url} onUrlChange={setUrl} onSubmit={handleAnalyze} />
+        )}
+        {appState === "processing" && (
+          <ProcessingView progress={progress} statusMessage={statusMessage} />
+        )}
         {appState === "completed" && renderCompletedView()}
 
         {appState === "error" && (
-          <div className="flex flex-col items-center justify-center min-h-[60vh] space-y-4 text-red-600 animate-in zoom-in">
+          <div className="flex min-h-[60vh] flex-col items-center justify-center space-y-4 text-red-600 animate-in zoom-in">
             <AlertCircle size={48} />
             <h3 className="text-xl font-semibold">Something went wrong</h3>
             <p className="text-gray-600">{errorMsg}</p>
             <button
               onClick={() => setAppState("idle")}
-              className="mt-4 px-4 py-2 bg-gray-900 text-white rounded-lg text-sm hover:bg-gray-800 transition-colors"
+              className="mt-4 rounded-lg bg-gray-900 px-4 py-2 text-sm text-white transition-colors hover:bg-gray-800"
             >
               Try Again
             </button>

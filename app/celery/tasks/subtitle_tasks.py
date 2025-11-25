@@ -1,10 +1,11 @@
 """
 字幕处理相关 Celery 任务
 """
+
 import asyncio
 
-from app.celery_app import celery_app
-from app.services.subtitle_service import SubtitleService
+from app.celery import celery_app
+from app.celery.services.subtitle_service import SubtitleService
 from app.services.task_manager import get_task_manager
 from app.schemas.subtitle import SubtitleRequest
 from app.core.constants import TaskStatus
@@ -16,7 +17,7 @@ subtitle_service = SubtitleService()
 
 
 @celery_app.task(
-    name="app.tasks.subtitle.process",
+    name="app.celery.tasks.subtitle.process",
     bind=True,
     max_retries=3,
     default_retry_delay=60,
@@ -27,18 +28,19 @@ subtitle_service = SubtitleService()
 )
 def subtitle_task(self, task_id: str, request_dict: dict):
     """字幕处理任务（Celery 任务）
-    
+
     Args:
         task_id: 任务ID
         request_dict: SubtitleRequest 的字典表示
     """
     try:
         logger.info(f"[Celery Task] 开始执行字幕处理任务: task_id={task_id}")
-        
+
         # 从字典重建 SubtitleRequest 对象
         from app.schemas.subtitle import SubtitleRequest, SubtitleConfig
+
         request = SubtitleRequest(**request_dict)
-        
+
         # 在事件循环中运行异步函数
         loop = asyncio.new_event_loop()
         asyncio.set_event_loop(loop)
@@ -48,9 +50,9 @@ def subtitle_task(self, task_id: str, request_dict: dict):
             )
         finally:
             loop.close()
-        
+
         logger.info(f"[Celery Task] 字幕处理任务完成: task_id={task_id}")
-        
+
         # 字幕任务完成后，更新视频任务状态
         video_task_id = task_manager.get_task_relation(task_id, "video_task_id")
         if video_task_id:

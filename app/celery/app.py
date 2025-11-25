@@ -1,6 +1,7 @@
 """
 Celery 应用配置
 """
+
 from celery import Celery
 from celery.signals import task_prerun, task_postrun, task_failure
 from app.config import CELERY_BROKER_URL, CELERY_RESULT_BACKEND
@@ -13,7 +14,7 @@ celery_app = Celery(
     "ai_subtitle_learner",
     broker=CELERY_BROKER_URL,
     backend=CELERY_RESULT_BACKEND,
-    include=["app.tasks"],  # 包含任务模块
+    include=["app.celery.tasks"],  # 包含任务模块
 )
 
 # Celery 配置
@@ -42,9 +43,9 @@ celery_app.conf.update(
     task_acks_on_failure_or_timeout=False,
     # 路由配置
     task_routes={
-        "app.tasks.video.*": {"queue": "video"},
-        "app.tasks.transcribe.*": {"queue": "transcribe"},
-        "app.tasks.subtitle.*": {"queue": "subtitle"},
+        "app.celery.tasks.video.*": {"queue": "video"},
+        "app.celery.tasks.transcribe.*": {"queue": "transcribe"},
+        "app.celery.tasks.subtitle.*": {"queue": "subtitle"},
     },
     # 默认队列
     task_default_queue="default",
@@ -54,19 +55,34 @@ celery_app.conf.update(
 
 
 @task_prerun.connect
-def task_prerun_handler(sender=None, task_id=None, task=None, args=None, kwargs=None, **kwds):
+def task_prerun_handler(
+    sender=None, task_id=None, task=None, args=None, kwargs=None, **kwds
+):
     """任务执行前处理"""
     logger.info(f"[Celery] 任务开始执行: task_id={task_id}, task={task.name}")
 
 
 @task_postrun.connect
-def task_postrun_handler(sender=None, task_id=None, task=None, args=None, kwargs=None, retval=None, state=None, **kwds):
+def task_postrun_handler(
+    sender=None,
+    task_id=None,
+    task=None,
+    args=None,
+    kwargs=None,
+    retval=None,
+    state=None,
+    **kwds,
+):
     """任务执行后处理"""
-    logger.info(f"[Celery] 任务执行完成: task_id={task_id}, task={task.name}, state={state}")
+    logger.info(
+        f"[Celery] 任务执行完成: task_id={task_id}, task={task.name}, state={state}"
+    )
 
 
 @task_failure.connect
-def task_failure_handler(sender=None, task_id=None, exception=None, traceback=None, einfo=None, **kwds):
+def task_failure_handler(
+    sender=None, task_id=None, exception=None, traceback=None, einfo=None, **kwds
+):
     """任务失败处理"""
     logger.error(
         f"[Celery] 任务执行失败: task_id={task_id}, exception={str(exception)}",
@@ -76,5 +92,3 @@ def task_failure_handler(sender=None, task_id=None, exception=None, traceback=No
 
 if __name__ == "__main__":
     celery_app.start()
-
-

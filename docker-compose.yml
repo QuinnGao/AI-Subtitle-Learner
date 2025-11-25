@@ -70,7 +70,7 @@ services:
       context: .
       dockerfile: Dockerfile
     container_name: video-subtitle-worker
-    command: celery -A app.celery_app worker --loglevel=info --concurrency=2 --max-tasks-per-child=10 -Q default,video,transcribe,subtitle
+    command: celery -A app.celery worker --loglevel=info --concurrency=2 --max-tasks-per-child=10 -Q default,video,transcribe,subtitle
     volumes:
       # 工作目录 - 存储处理中的文件
       - ./workspace:/app/workspace

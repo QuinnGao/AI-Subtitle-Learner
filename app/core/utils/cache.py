@@ -73,7 +73,6 @@ def is_cache_enabled() -> bool:
 CACHE_PREFIX_LLM = "cache:llm:"
 CACHE_PREFIX_ASR = "cache:asr:"
 CACHE_PREFIX_TRANSLATE = "cache:translate:"
-CACHE_PREFIX_TTS = "cache:tts:"
 CACHE_PREFIX_VERSION = "cache:version:"
 
 
@@ -94,11 +93,6 @@ def get_asr_cache() -> redis.Redis:
 
 def get_translate_cache() -> redis.Redis:
     """Get translate cache instance (返回 Redis 客户端，用于兼容性)"""
-    return _get_redis_client()
-
-
-def get_tts_cache() -> redis.Redis:
-    """Get TTS audio cache instance (返回 Redis 客户端，用于兼容性)"""
     return _get_redis_client()
 
 

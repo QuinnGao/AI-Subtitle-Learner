@@ -149,7 +149,7 @@ def setup_logger(
 
         # 检测是否应该禁用 enqueue（避免在 VSCode debug 等环境中的 multiprocessing 问题）
         use_enqueue = not _should_disable_enqueue()
-        
+
         # 添加控制台输出
         if console_output:
             # 使用自动刷新的流包装器，确保日志立即输出

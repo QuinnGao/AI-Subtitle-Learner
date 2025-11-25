@@ -52,12 +52,21 @@ interface WordTokenProps {
   onPause?: () => void; // 暂停播放回调
 }
 
-const WordTokenComponent: React.FC<WordTokenProps> = ({ token, currentTime, onTokenClick, onTokenDictionaryClick, onPause }) => {
+const WordTokenComponent: React.FC<WordTokenProps> = ({
+  token,
+  currentTime,
+  onTokenClick,
+  onTokenDictionaryClick,
+  onPause,
+}) => {
   const showFurigana = token.furigana && token.furigana !== token.text;
 
   // 判断当前 token 是否应该高亮
   const isHighlighted =
-    token.start_time !== undefined && token.end_time !== undefined && currentTime >= token.start_time && currentTime < token.end_time;
+    token.start_time !== undefined &&
+    token.end_time !== undefined &&
+    currentTime >= token.start_time &&
+    currentTime < token.end_time;
 
   const handleClick = (e: React.MouseEvent) => {
     e.stopPropagation(); // 阻止事件冒泡到 SubtitleItem
@@ -81,28 +90,30 @@ const WordTokenComponent: React.FC<WordTokenProps> = ({ token, currentTime, onTo
 
   return (
     <div
-      className="flex flex-col items-center group/word cursor-pointer"
+      className="group/word flex cursor-pointer flex-col items-center"
       onClick={handleClick}
       onContextMenu={handleRightClick}
       onDoubleClick={() => onTokenDictionaryClick?.(token)}
     >
       {/* 假名 */}
-      <span className="text-[10px] text-gray-500 h-4 leading-none mb-0.5 opacity-0 group-hover/word:opacity-100 transition-opacity select-none">
+      <span className="mb-0.5 h-4 select-none text-[10px] leading-none text-gray-500 opacity-0 transition-opacity group-hover/word:opacity-100">
         {showFurigana ? token.furigana : ""}
       </span>
 
       {/* 汉字/原文 */}
       <div
         className={`
-        px-1.5 py-0.5 rounded transition-all duration-200 ${getTokenColorClass(token.type)}
-        ${isHighlighted && "border-blue-400 border-2"}
+        rounded border-2 px-1.5 py-0.5 transition-all duration-200 ${getTokenColorClass(token.type)}
+        ${isHighlighted ? "border-blue-400" : "border-transparent"}
       `}
       >
         <span className="text-lg font-bold leading-none">{token.text}</span>
       </div>
 
       {/* 罗马音 */}
-      <span className="text-[10px] text-gray-400 font-mono mt-1 h-3 leading-none">{token.romaji}</span>
+      <span className="mt-1 h-3 font-mono text-[10px] leading-none text-gray-400">
+        {token.romaji}
+      </span>
     </div>
   );
 };
@@ -136,16 +147,16 @@ export const SubtitleItem: React.FC<SubtitleItemProps> = ({
       ref={innerRef}
       onClick={onClick}
       className={`
-        transition-all duration-300 cursor-pointer rounded-xl border m-5
+        m-5 cursor-pointer rounded-xl border transition-all duration-300
         ${
           isActive
-            ? "scale-[1.02] opacity-100"
-            : "bg-gray-50/50 border-transparent hover:bg-white hover:border-gray-200 opacity-60 hover:opacity-100"
+            ? "opacity-100"
+            : "border-transparent bg-gray-50/50 opacity-60 hover:border-gray-200 hover:bg-white hover:opacity-100"
         }
       `}
     >
       {/* 单词块布局 */}
-      <div className="flex flex-wrap gap-x-1 gap-y-3 items-end mb-1 mx-4">
+      <div className="mx-4 mb-1 flex flex-wrap items-end gap-x-1 gap-y-3">
         {sentence.tokens.map((token, tIdx) => (
           <WordTokenComponent
             key={tIdx}
@@ -161,8 +172,8 @@ export const SubtitleItem: React.FC<SubtitleItemProps> = ({
       {/* 翻译 */}
       <div
         className={`
-          text-sm pt-1 mx-4 border-t border-dashed transition-colors
-          ${isActive ? "text-gray-700 border-blue-100" : "text-gray-500 border-gray-200"}
+          mx-4 border-t border-dashed pt-1 text-sm transition-colors
+          ${isActive ? "border-blue-100 text-gray-700" : "border-gray-200 text-gray-500"}
         `}
       >
         {sentence.translation}

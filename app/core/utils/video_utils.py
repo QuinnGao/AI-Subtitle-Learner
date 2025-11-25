@@ -18,14 +18,17 @@ logger = setup_logger("video_utils")
 def temporary_subtitle_file(subtitle_path: str):
     """临时字幕文件上下文管理器
 
-    自动复制字幕文件到临时位置，使用后自动清理
+    自动复制字幕文件到临时位置，使用后自动清理。
+    支持从 MinIO 读取字幕文件。
 
     Args:
-        subtitle_path: 原始字幕文件路径
+        subtitle_path: 原始字幕文件路径或 MinIO 对象名称
 
     Yields:
         临时字幕文件路径
     """
+    from app.core.storage import get_storage
+    
     suffix = Path(subtitle_path).suffix.lower()
     temp_fd, temp_path = tempfile.mkstemp(
         suffix=suffix, prefix="VideoCaptioner_subtitle_"
@@ -33,8 +36,14 @@ def temporary_subtitle_file(subtitle_path: str):
     os.close(temp_fd)
 
     try:
-        # 复制字幕到临时位置
-        shutil.copy2(subtitle_path, temp_path)
+        # 检查是否是 MinIO 对象
+        storage = get_storage()
+        if storage.file_exists(subtitle_path):
+            # 从 MinIO 下载到临时位置
+            storage.download_file(subtitle_path, temp_path)
+        else:
+            # 本地文件，复制到临时位置
+            shutil.copy2(subtitle_path, temp_path)
         yield temp_path
     finally:
         # 自动清理临时文件
