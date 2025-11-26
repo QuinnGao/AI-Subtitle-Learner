@@ -67,7 +67,7 @@ class TranscribeService:
         """更新任务状态为 running"""
         logger.info(f"[任务 {task_id}] 更新任务状态为 running")
         self.task_manager.update_task(
-            task_id, status=TaskStatus.RUNNING, message="开始转录"
+            task_id, status=TaskStatus.RUNNING, message="Starting transcription"
         )
 
     def _get_file_path_from_db(self, task_id: str) -> Path:
@@ -90,7 +90,9 @@ class TranscribeService:
                 if self._validate_file_path(file_path_obj):
                     return file_path_obj
                 else:
-                    error_msg = f"关联视频任务的文件路径不存在: {file_path_obj}"
+                    error_msg = (
+                        f"Related video task file path does not exist: {file_path_obj}"
+                    )
                     logger.error(f"[任务 {task_id}] {error_msg}")
                     raise ValueError(error_msg)
 
@@ -166,7 +168,9 @@ class TranscribeService:
             f"language={core_config.transcribe_language}"
         )
 
-        self.task_manager.update_task(task_id, progress=10, message="语音转录中")
+        self.task_manager.update_task(
+            task_id, progress=10, message="Transcribing audio"
+        )
 
         asr_data, detected_language = await transcribe(
             audio_path,
@@ -190,8 +194,8 @@ class TranscribeService:
                 detected_language, detected_language
             )
             error_msg = (
-                f"检测到视频语言为 {detected_lang_name} ({detected_language})，"
-                f"目前仅支持日语视频。请使用日语视频进行分析。"
+                f"Detected video language is {detected_lang_name} ({detected_language}). "
+                f"Currently only Japanese videos are supported. Please use a Japanese video for analysis."
             )
             logger.error(f"[任务 {task_id}] {error_msg}")
             raise ValueError(error_msg)
@@ -226,7 +230,7 @@ class TranscribeService:
             task_id,
             status=TaskStatus.COMPLETED,
             progress=100,
-            message="转录完成",
+            message="Transcription completed",
             output_path=output_path,
         )
 
@@ -236,7 +240,10 @@ class TranscribeService:
         logger.error(f"[任务 {task_id}] 转录任务失败: {error_msg}", exc_info=True)
 
         self.task_manager.update_task(
-            task_id, status=TaskStatus.FAILED, error=error_msg, message="转录失败"
+            task_id,
+            status=TaskStatus.FAILED,
+            error=error_msg,
+            message="Transcription failed",
         )
         logger.error(f"[任务 {task_id}] 任务状态已更新为 failed")
 

@@ -145,7 +145,7 @@ class VideoDownloadService:
 
             try:
                 progress = int(float(clean_percent))
-                message = f"下载进度: {clean_percent}%  速度: {clean_speed}"
+                message = f"Download progress: {clean_percent}%  Speed: {clean_speed}"
                 self.task_manager.update_task(
                     task_id, progress=progress, message=message
                 )
@@ -165,7 +165,7 @@ class VideoDownloadService:
             self.task_manager.update_task(
                 task_id,
                 status=TaskStatus.RUNNING,
-                message="开始下载音频",
+                message="Starting audio download",
             )
 
             # 使用配置的工作目录或提供的目录
@@ -237,7 +237,7 @@ class VideoDownloadService:
                 task_id,
                 status=TaskStatus.RUNNING,
                 progress=50,
-                message="音频下载完成，等待转录...",
+                message="Audio download completed, waiting for transcription...",
                 output_path=minio_path,  # 存储 MinIO 路径
             )
 
@@ -277,7 +277,7 @@ class VideoDownloadService:
                     # 更新音频下载任务消息
                     self.task_manager.update_task(
                         task_id,
-                        message="音频下载完成，等待转录...",
+                        message="Audio download completed, waiting for transcription...",
                     )
 
                     # 创建转录请求，使用 WhisperX（默认使用 CPU）
@@ -314,8 +314,8 @@ class VideoDownloadService:
                     self.task_manager.update_task(
                         task_id,
                         status=TaskStatus.FAILED,
-                        error=f"创建转录任务失败: {str(e)}",
-                        message="音频下载完成，但创建转录任务失败",
+                        error=f"Failed to create transcription task: {str(e)}",
+                        message="Audio download completed, but failed to create transcription task",
                     )
             else:
                 # 音频文件不存在，标记为失败
@@ -323,8 +323,8 @@ class VideoDownloadService:
                     task_id,
                     status=TaskStatus.FAILED,
                     progress=0,
-                    message="音频下载失败：文件不存在",
-                    error="音频文件下载失败",
+                    message="Audio download failed: file does not exist",
+                    error="Audio file download failed",
                 )
                 logger.error(f"[任务 {task_id}] 音频文件不存在: {video_file_path}")
                 return
@@ -336,7 +336,7 @@ class VideoDownloadService:
                 task_id,
                 status=TaskStatus.FAILED,
                 error=error_msg,
-                message="音频下载失败",
+                message="Audio download failed",
             )
 
     def _download_video_sync(

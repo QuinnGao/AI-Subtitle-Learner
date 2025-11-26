@@ -43,7 +43,7 @@ async def start_analysis(url: str):
         logger.info(f"创建音频下载任务: task_id={task_id}")
 
         # 构建消息
-        message = "任务已创建，开始下载音频..."
+        message = "Task created, starting audio download..."
 
         # 发送 Celery 任务到队列
         download_audio_task.delay(task_id, url, None)
@@ -150,37 +150,43 @@ async def _get_task_status_data(task_id: str) -> AnalyzeResponse:
         subtitle_task_obj and subtitle_task_obj.status == TaskStatus.COMPLETED
     ):
         unified_progress = 100
-        unified_message = unified_message or "分析完成"
+        unified_message = unified_message or "Analysis completed"
         final_status = TaskStatus.COMPLETED
     # 检查运行中状态
     elif subtitle_task_obj and subtitle_task_obj.status == TaskStatus.RUNNING:
         # 字幕处理中：70% + 字幕任务进度的30%
         subtitle_progress = subtitle_task_obj.progress or 0
         unified_progress = min(70 + int(subtitle_progress * 0.3), 99)
-        unified_message = subtitle_task_obj.message or unified_message or "字幕处理中"
+        unified_message = (
+            subtitle_task_obj.message or unified_message or "Processing subtitles"
+        )
         final_status = task.status
     elif transcribe_task_obj and transcribe_task_obj.status == TaskStatus.COMPLETED:
         # 转录完成
         unified_progress = 70 if subtitle_task_id else 100
         unified_message = unified_message or (
-            "转录完成，等待字幕处理" if subtitle_task_id else "转录完成"
+            "Transcription completed, waiting for subtitle processing"
+            if subtitle_task_id
+            else "Transcription completed"
         )
         final_status = task.status
     elif transcribe_task_obj and transcribe_task_obj.status == TaskStatus.RUNNING:
         # 转录中：30% + 转录任务进度的40%
         transcribe_progress = transcribe_task_obj.progress or 0
         unified_progress = min(30 + int(transcribe_progress * 0.4), 69)
-        unified_message = transcribe_task_obj.message or unified_message or "转录中"
+        unified_message = (
+            transcribe_task_obj.message or unified_message or "Transcribing"
+        )
         final_status = task.status
     elif task.status == TaskStatus.RUNNING:
         # 视频下载中：0-30%
         video_progress = task.progress or 0
         unified_progress = min(int(video_progress * 0.3), 29)
-        unified_message = unified_message or "下载音频中"
+        unified_message = unified_message or "Downloading audio"
         final_status = task.status
     elif task.status == TaskStatus.PENDING:
         unified_progress = 0
-        unified_message = unified_message or "任务已创建，等待处理"
+        unified_message = unified_message or "Task created, waiting for processing"
         final_status = task.status
     else:
         # 其他状态

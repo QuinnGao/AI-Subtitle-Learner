@@ -2,6 +2,7 @@
 
 import React, { useState, useRef, useCallback } from "react";
 import { AlertCircle, Play, Pause } from "lucide-react";
+import { useTranslation } from "react-i18next";
 import {
   startVideoAnalysis,
   getSubtitleContent,
@@ -85,6 +86,9 @@ export default function VideoLearningPage() {
   // Data State
   const [subtitleData, setSubtitleData] = useState<SentenceData[]>([]);
 
+  // i18n
+  const { t } = useTranslation();
+
   // Toast
   const { toast } = useToast();
 
@@ -108,7 +112,7 @@ export default function VideoLearningPage() {
               const errorMessage = "Invalid subtitle data format";
               toast({
                 variant: "destructive",
-                title: "数据格式错误",
+                title: t("toast.dataFormatError"),
                 description: errorMessage,
               });
               setAppState("error");
@@ -118,7 +122,7 @@ export default function VideoLearningPage() {
             const errorMessage = err.message || "Failed to fetch subtitles";
             toast({
               variant: "destructive",
-              title: "获取字幕失败",
+              title: t("toast.fetchSubtitleFailed"),
               description: errorMessage,
             });
             setAppState("error");
@@ -128,7 +132,7 @@ export default function VideoLearningPage() {
           const errorMessage = "No subtitle generated";
           toast({
             variant: "destructive",
-            title: "字幕生成失败",
+            title: t("toast.subtitleGenerationFailed"),
             description: errorMessage,
           });
           setAppState("error");
@@ -136,17 +140,17 @@ export default function VideoLearningPage() {
         }
       } else if (data.status === "failed" || data.status === "cancelled") {
         // 显示失败 toast
-        const errorMessage = data.error || data.message || "任务失败";
+        const errorMessage = data.error || data.message || "Task failed";
         toast({
           variant: "destructive",
-          title: "任务失败",
+          title: t("toast.taskFailed"),
           description: errorMessage,
         });
         setAppState("error");
         setErrorMsg(errorMessage);
       }
     },
-    [toast]
+    [toast, t]
   );
 
   const handleTaskError = useCallback(
@@ -154,13 +158,13 @@ export default function VideoLearningPage() {
       const errorMessage = err.message || "Connection error";
       toast({
         variant: "destructive",
-        title: "连接错误",
+        title: t("toast.connectionError"),
         description: errorMessage,
       });
       setAppState("error");
       setErrorMsg(errorMessage);
     },
-    [toast]
+    [toast, t]
   );
 
   // 使用 SSE 监听任务状态
@@ -210,7 +214,7 @@ export default function VideoLearningPage() {
       const errorMessage = err.message || "Failed to start task";
       toast({
         variant: "destructive",
-        title: "启动任务失败",
+        title: t("toast.startTaskFailed"),
         description: errorMessage,
       });
       setAppState("error");

@@ -94,6 +94,12 @@ services:
       dockerfile: Dockerfile
     container_name: ai-subtitle-learner-worker
     command: celery -A app.celery worker --loglevel=info --concurrency=1 --max-tasks-per-child=5 -Q default,video,transcribe,subtitle
+    deploy:
+      resources:
+        limits:
+          memory: 20G
+        reservations:
+          memory: 4G
     volumes:
       # 工作目录 - 存储处理中的文件
       - ./workspace:/app/workspace

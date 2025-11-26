@@ -41,6 +41,13 @@
   "viewSubtitle": "View Subtitle",
   "loading": "Loading...",
   "close": "Close",
-  "subtitleTask": "Subtitle Task"
+  "subtitleTask": "Subtitle Task",
+  "toast": {
+    "taskFailed": "Task Failed",
+    "connectionError": "Connection Error",
+    "startTaskFailed": "Failed to Start Task",
+    "fetchSubtitleFailed": "Failed to Fetch Subtitles",
+    "subtitleGenerationFailed": "Subtitle Generation Failed",
+    "dataFormatError": "Data Format Error"
+  }
 }
-

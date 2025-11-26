@@ -232,7 +232,7 @@ class SubtitleService:
             return
 
         # 文件不存在
-        error_msg = f"字幕文件不存在: {subtitle_path}"
+        error_msg = f"Subtitle file does not exist: {subtitle_path}"
         logger.error(f"[任务 {task_id}] {error_msg}")
         raise ValueError(error_msg)
 
@@ -297,7 +297,9 @@ class SubtitleService:
         """验证 LLM 配置（如果需要 LLM）"""
         if self._need_llm(core_config, asr_data):
             logger.info(f"[任务 {task_id}] 需要 LLM，开始验证 LLM 配置")
-            self.task_manager.update_task(task_id, progress=2, message="验证 LLM 配置")
+            self.task_manager.update_task(
+                task_id, progress=2, message="Validating LLM configuration"
+            )
             # 使用健康检查器验证并设置 LLM 配置（全局统一处理，自动处理错误）
             # 从环境变量获取配置
             health_checker = get_health_checker()
@@ -329,7 +331,9 @@ class SubtitleService:
             )
         else:
             logger.info(f"[任务 {task_id}] 开始重新断句（字词级字幕）")
-            self.task_manager.update_task(task_id, progress=10, message="字幕断句中")
+            self.task_manager.update_task(
+                task_id, progress=10, message="Splitting subtitles"
+            )
             splitter = SubtitleSplitter(
                 max_concurrent=core_config.thread_num,
                 model=core_config.llm_model,
@@ -373,7 +377,7 @@ class SubtitleService:
         else:
             logger.info(f"[任务 {task_id}] 开始分析日语文本")
             self.task_manager.update_task(
-                task_id, progress=55, message="分析日语文本中"
+                task_id, progress=55, message="Analyzing Japanese text"
             )
             analyzer = JapaneseAnalyzer(
                 model=core_config.llm_model,
@@ -512,9 +516,11 @@ class SubtitleService:
                 f"[任务 {task_id}] 开始翻译字幕，目标语言: {core_config.target_language}, "
                 f"翻译服务: {core_config.translator_service}"
             )
-            self.task_manager.update_task(task_id, progress=60, message="翻译字幕中")
+            self.task_manager.update_task(
+                task_id, progress=60, message="Translating subtitles"
+            )
             if not core_config.target_language:
-                error_msg = "目标语言未配置"
+                error_msg = "Target language not configured"
                 logger.error(f"[任务 {task_id}] {error_msg}")
                 raise Exception(error_msg)
 
@@ -573,7 +579,9 @@ class SubtitleService:
 
         try:
             self.task_manager.update_task(
-                task_id, status=TaskStatus.RUNNING, message="开始处理字幕"
+                task_id,
+                status=TaskStatus.RUNNING,
+                message="Starting subtitle processing",
             )
 
             # 1. 从数据库获取文件路径（优先从关联的转录任务获取）
@@ -622,7 +630,7 @@ class SubtitleService:
                 task_id,
                 status=TaskStatus.COMPLETED,
                 progress=100,
-                message="字幕处理完成",
+                message="Subtitle processing completed",
                 output_path=json_output_path,
             )
 
@@ -633,7 +641,7 @@ class SubtitleService:
                 task_id,
                 status=TaskStatus.FAILED,
                 error=error_msg,
-                message="字幕处理失败",
+                message="Subtitle processing failed",
             )
             # 重新抛出异常，让 Celery 知道任务失败
             raise
@@ -712,5 +720,5 @@ class SubtitleService:
         self.task_manager.update_task(
             task_id,
             progress=60 + int(progress * 0.3),
-            message=f"翻译进度: {progress}%",
+            message=f"Translation progress: {progress}%",
         )

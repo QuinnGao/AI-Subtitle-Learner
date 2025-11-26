@@ -41,6 +41,13 @@
   "viewSubtitle": "查看字幕",
   "loading": "加载中...",
   "close": "关闭",
-  "subtitleTask": "字幕任务"
+  "subtitleTask": "字幕任务",
+  "toast": {
+    "taskFailed": "任务失败",
+    "connectionError": "连接错误",
+    "startTaskFailed": "启动任务失败",
+    "fetchSubtitleFailed": "获取字幕失败",
+    "subtitleGenerationFailed": "字幕生成失败",
+    "dataFormatError": "数据格式错误"
+  }
 }
-
