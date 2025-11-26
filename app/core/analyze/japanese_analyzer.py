@@ -4,8 +4,10 @@
 """
 
 import asyncio
+import difflib
 import json
 import re
+from collections import Counter
 from typing import Dict, List, Tuple
 
 import json_repair
@@ -387,8 +389,6 @@ class JapaneseAnalyzer:
         # 严格检查长度必须完全一致
         if len(original_cleaned) != len(result_cleaned):
             # 使用字符频率分析找出缺失或多余的字符
-            from collections import Counter
-
             original_counter = Counter(original_cleaned)
             result_counter = Counter(result_cleaned)
 
@@ -419,8 +419,6 @@ class JapaneseAnalyzer:
         # 验证字符顺序和内容是否匹配（使用字符序列比较）
         if original_cleaned != result_cleaned:
             # 使用 difflib 找出具体差异
-            import difflib
-
             diff = list(
                 difflib.unified_diff([original_cleaned], [result_cleaned], lineterm="")
             )

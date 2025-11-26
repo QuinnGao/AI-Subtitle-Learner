@@ -14,6 +14,7 @@ try:
 except ImportError:
     WHISPERX_AVAILABLE = False
 
+from ...config import MODEL_PATH
 from ..utils.logger import setup_logger
 from .asr_data import ASRDataSeg
 from .base import BaseASR
@@ -107,8 +108,6 @@ class WhisperXASR(BaseASR):
             logger.info(f"[WhisperX] 使用自定义模型目录: {download_root}")
         else:
             # 使用项目根目录下的 models/whisperx 文件夹
-            from ...config import MODEL_PATH
-
             download_root = Path(MODEL_PATH) / "whisperx"
             download_root.mkdir(parents=True, exist_ok=True)
             logger.info(f"[WhisperX] 使用默认模型目录: {download_root}")
@@ -148,8 +147,6 @@ class WhisperXASR(BaseASR):
         if self.model_dir:
             align_download_root = Path(self.model_dir)
         else:
-            from ...config import MODEL_PATH
-
             align_download_root = Path(MODEL_PATH) / "whisperx"
 
         logger.info(

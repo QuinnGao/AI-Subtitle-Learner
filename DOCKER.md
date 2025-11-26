@@ -42,7 +42,20 @@ docker-compose -f docker-compose.gpu.yml down
 
 ## 服务访问
 
-启动成功后，可以通过以下地址访问：
+### 通过 Nginx 反向代理访问（推荐）
+
+启动成功后，所有服务通过 Nginx 反向代理统一访问：
+
+- **前端界面**: http://localhost
+- **后端API**: http://localhost/api/v1
+- **API文档**: http://localhost/docs 或 http://localhost/api/docs
+- **健康检查**: http://localhost/health
+- **MinIO 控制台**: http://localhost/minio/ (可选)
+- **RabbitMQ 管理界面**: http://localhost/rabbitmq/ (可选)
+
+### 直接访问服务（已禁用，如需启用请取消注释端口映射）
+
+如果需要直接访问服务，可以在 `docker-compose.yml` 中取消注释相应的端口映射：
 
 - **前端界面**: http://localhost:3000
 - **后端API**: http://localhost:8000
@@ -60,8 +73,8 @@ NEXT_PUBLIC_API_BASE_URL=http://localhost:8000/api/v1
 ```
 
 **注意**：
-- 如果前端和后端在同一主机，使用 `http://localhost:8000/api/v1`
-- 如果使用反向代理（如nginx），可以设置为相对路径 `/api/v1`
+- **默认配置**: 使用相对路径 `/api/v1`（通过 Nginx 反向代理）
+- 如果直接访问服务（取消注释端口映射），使用 `http://localhost:8000/api/v1`
 - 如果前端和后端在不同主机，使用实际IP或域名
 
 ### 后端配置
@@ -81,17 +94,24 @@ LOG_LEVEL=INFO
 
 ## 服务说明
 
+### Nginx 反向代理
+
+- **容器名**: `video-subtitle-nginx`
+- **端口**: 80
+- **配置**: `./nginx/nginx.conf`
+- **功能**: 统一入口，反向代理所有服务
+
 ### API 服务
 
 - **容器名**: `video-subtitle-api` (标准版) 或 `video-subtitle-api-gpu` (GPU版)
-- **端口**: 8000
-- **健康检查**: http://localhost:8000/health
+- **内部端口**: 8000（通过 Nginx 访问）
+- **健康检查**: http://localhost/health
 
 ### Web 前端服务
 
 - **容器名**: `video-subtitle-web`
-- **端口**: 3000
-- **健康检查**: http://localhost:3000
+- **内部端口**: 3000（通过 Nginx 访问）
+- **健康检查**: http://localhost
 
 ## 数据持久化
 
@@ -192,30 +212,46 @@ docker-compose exec api bash
 5. **日志管理**: 配置日志轮转和集中日志管理
 6. **监控**: 配置健康检查和监控告警
 
-## 示例：使用 Nginx 反向代理
+## Nginx 反向代理配置
 
-```nginx
-server {
-    listen 80;
-    server_name your-domain.com;
+项目已集成 Nginx 反向代理，配置文件位于 `nginx/nginx.conf`。
 
-    location / {
-        proxy_pass http://localhost:3000;
-        proxy_set_header Host $host;
-        proxy_set_header X-Real-IP $remote_addr;
-    }
+### 路由规则
 
-    location /api {
-        proxy_pass http://localhost:8000;
-        proxy_set_header Host $host;
-        proxy_set_header X-Real-IP $remote_addr;
-    }
-}
+- `/` → 前端应用 (web:3000)
+- `/api/v1` → 后端 API (api:8000)
+- `/api/docs` 或 `/docs` → API 文档
+- `/health` → 健康检查
+- `/minio/` → MinIO 控制台 (可选)
+- `/rabbitmq/` → RabbitMQ 管理界面 (可选)
+
+### 自定义配置
+
+如需修改 Nginx 配置：
+
+1. 编辑 `nginx/nginx.conf`
+2. 重启 Nginx 服务：
+
+```bash
+docker-compose restart nginx
 ```
 
-然后在 `.env` 中设置：
+### 验证配置
 
-```env
-NEXT_PUBLIC_API_BASE_URL=/api/v1
+```bash
+# 检查 Nginx 配置语法
+docker-compose exec nginx nginx -t
+
+# 重新加载配置（不中断服务）
+docker-compose exec nginx nginx -s reload
 ```
+
+### 生产环境建议
+
+1. **HTTPS**: 配置 SSL/TLS 证书
+2. **认证**: 为管理界面（MinIO、RabbitMQ）添加认证
+3. **防火墙**: 只暴露必要的端口（80/443）
+4. **日志**: 配置日志轮转和集中管理
+
+详细配置说明请参考 `nginx/README.md`
 

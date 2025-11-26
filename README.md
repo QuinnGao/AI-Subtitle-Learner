@@ -1,4 +1,4 @@
-# AI Subtitle Learner (AI字幕学习助手)
+# AI Subtitle Learner (AI日语字幕学习助手)
 
 这是一个完整的AI字幕语言学习系统，包含基于 FastAPI 的后端服务和基于 Next.js 的前端应用。支持从 YouTube 下载视频、自动转录、字幕处理、翻译和交互式学习等功能。
 
@@ -513,8 +513,8 @@ pytest --cov=app --cov-report=html
 1. **配置环境变量**：设置生产环境的数据库、Redis、RabbitMQ、MinIO 连接信息
 
 2. **启动服务**：
-   ```bash
-   docker-compose up -d
+```bash
+docker-compose up -d
    ```
 
 3. **扩展 Worker**：可以启动多个 Worker 节点处理任务

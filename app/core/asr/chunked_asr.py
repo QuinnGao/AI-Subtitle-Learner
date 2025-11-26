@@ -5,10 +5,14 @@
 """
 
 import io
+import tempfile
 from concurrent.futures import ThreadPoolExecutor, as_completed
+from pathlib import Path
 from typing import Callable, List, Optional, Tuple
 
 from pydub import AudioSegment
+
+from app.core.storage import get_storage
 
 from ..utils.logger import setup_logger
 from .asr_data import ASRData
@@ -71,10 +75,6 @@ class ChunkedASR:
         self.chunk_concurrency = chunk_concurrency
 
         # 读取完整音频文件（用于分块），支持从 MinIO 读取
-        from app.core.storage import get_storage
-        import tempfile
-        from pathlib import Path
-
         storage = get_storage()
         if storage.file_exists(audio_path):
             # 从 MinIO 下载到临时文件

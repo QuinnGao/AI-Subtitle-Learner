@@ -28,32 +28,119 @@ cd web
 npm install
 ```
 
-## 配置
+## 环境配置
 
-创建 `.env.local` 文件（可选）：
+项目支持两种运行环境：**本地开发环境** 和 **生产环境**。
 
-```env
-NEXT_PUBLIC_API_BASE_URL=http://localhost:8000/api/v1
+### 本地开发环境（Local Development）
+
+适用于本地开发调试，直接访问后端服务。
+
+1. **复制环境变量示例文件**：
+```bash
+cp .env.local.example .env.local
 ```
 
-如果不设置，默认使用 `http://localhost:8000/api/v1`
+2. **编辑 `.env.local` 文件**：
+```env
+# 本地开发环境配置
+# 直接访问后端服务（不通过 Nginx）
+NEXT_PUBLIC_API_BASE_URL=http://localhost:8000/api/v1
+NEXT_PUBLIC_ENV=development
+```
+
+3. **启动开发服务器**：
+```bash
+npm run dev
+```
+
+**说明**：
+- 本地开发时，前端运行在 `http://localhost:3000`
+- 后端 API 运行在 `http://localhost:8000`
+- 前端直接访问后端，不经过 Nginx 反向代理
+
+### 生产环境（Production）
+
+适用于 Docker 部署，通过 Nginx 反向代理访问。
+
+1. **Docker Compose 部署**（推荐）：
+   - 环境变量已在 `docker-compose.yml` 中配置
+   - 默认使用相对路径 `/api/v1`
+   - 通过 Nginx 反向代理统一访问
+
+2. **手动构建生产版本**：
+```bash
+# 复制生产环境配置
+cp .env.production.example .env.production
+
+# 构建生产版本
+npm run build
+
+# 启动生产服务器
+npm start
+```
+
+**说明**：
+- 生产环境通过 Nginx 反向代理访问
+- 前端访问地址：`http://localhost`（Nginx:80）
+- API 访问路径：`/api/v1`（由 Nginx 代理到后端）
+
+### 环境变量说明
+
+| 变量名 | 本地开发 | 生产环境 | 说明 |
+|--------|---------|---------|------|
+| `NEXT_PUBLIC_API_BASE_URL` | `http://localhost:8000/api/v1` | `/api/v1` | API 基础地址 |
+| `NEXT_PUBLIC_ENV` | `development` | `production` | 环境标识（可选） |
+
+### 配置文件优先级
+
+Next.js 环境变量加载顺序（优先级从高到低）：
+1. `.env.local` - 本地开发配置（所有环境，优先级最高）
+2. `.env.development` - 开发环境配置
+3. `.env.production` - 生产环境配置
+4. `.env` - 默认配置（所有环境）
+
+**注意**：`.env.local` 文件不会被提交到 Git，用于本地开发配置。
 
 ## 运行
 
-开发模式：
+### 本地开发模式
 
 ```bash
+# 1. 配置环境变量（首次运行）
+cp .env.local.example .env.local
+# 编辑 .env.local，设置 NEXT_PUBLIC_API_BASE_URL=http://localhost:8000/api/v1
+
+# 2. 启动开发服务器
 npm run dev
 ```
 
 应用将在 [http://localhost:3000](http://localhost:3000) 启动。
 
-生产构建：
+**前提条件**：
+- 确保后端 API 服务正在运行（`http://localhost:8000`）
+- 或使用 Docker Compose 启动所有服务
+
+### 生产构建
 
 ```bash
+# 构建生产版本
 npm run build
+
+# 启动生产服务器
 npm start
 ```
+
+### Docker 部署
+
+使用 Docker Compose 部署（推荐）：
+
+```bash
+# 在项目根目录
+docker-compose up -d web
+```
+
+生产环境配置已在 `docker-compose.yml` 中设置，无需额外配置。
 
 ## 代码质量
 

@@ -6,8 +6,11 @@ from celery import Celery
 from celery.signals import task_prerun, task_postrun, task_failure
 from app.config import CELERY_BROKER_URL, CELERY_RESULT_BACKEND
 from app.core.utils.logger import setup_logger
+from app.services.task_manager import get_task_manager
+from app.core.constants import TaskStatus
 
 logger = setup_logger("celery_app")
+task_manager = get_task_manager()
 
 # 创建 Celery 应用
 celery_app = Celery(
@@ -78,6 +81,21 @@ def task_postrun_handler(
         f"[Celery] 任务执行完成: task_id={task_id}, task={task.name}, state={state}"
     )
 
+    try:
+        task_obj = task_manager.get_task(task_id)
+        if task_obj and task_obj.status == TaskStatus.RUNNING:
+            task_manager.update_task(
+                task_id,
+                status=TaskStatus.COMPLETED,
+                progress=100,
+                message="任务完成",
+            )
+            logger.info(f"[Celery] 在 postrun 中更新任务状态为完成: task_id={task_id}")
+    except Exception as e:
+        logger.warning(
+            f"[Celery] 在 postrun 中更新任务状态失败: {str(e)}", exc_info=True
+        )
+
 
 @task_failure.connect
 def task_failure_handler(
@@ -88,6 +106,22 @@ def task_failure_handler(
         f"[Celery] 任务执行失败: task_id={task_id}, exception={str(exception)}",
         exc_info=einfo,
     )
+
+    # 尝试从任务参数中提取应用任务 ID 并更新状态为失败
+    try:
+        if isinstance(task_id, str) and len(task_id) > 10:
+            # 更新任务状态为失败
+            task_manager.update_task(
+                task_id,
+                status=TaskStatus.FAILED,
+                error=str(exception),
+                message="任务执行失败",
+            )
+            logger.info(f"[Celery] 在 failure 中更新任务状态为失败: task_id={task_id}")
+    except Exception as e:
+        logger.warning(
+            f"[Celery] 在 failure 中更新任务状态失败: {str(e)}", exc_info=True
+        )
 
 
 if __name__ == "__main__":

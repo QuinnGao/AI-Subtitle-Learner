@@ -6,7 +6,7 @@ from enum import Enum
 from typing import Optional
 
 from pydantic import BaseModel, Field
-
+from app.config import settings
 from app.core.translate.types import TargetLanguage
 from app.schemas.common import TaskResponse
 
@@ -14,8 +14,6 @@ from app.schemas.common import TaskResponse
 def _get_default_max_word_count_cjk() -> int:
     """获取 CJK 最大字数的默认值"""
     try:
-        from app.config import settings
-
         return settings.max_word_count_cjk
     except (ImportError, AttributeError):
         # 如果配置不可用，使用 core/entities.py 中的默认值
@@ -25,8 +23,6 @@ def _get_default_max_word_count_cjk() -> int:
 def _get_default_max_word_count_english() -> int:
     """获取英文最大字数的默认值"""
     try:
-        from app.config import settings
-
         return settings.max_word_count_english
     except (ImportError, AttributeError):
         # 如果配置不可用，使用 core/entities.py 中的默认值
@@ -112,33 +108,8 @@ class SubtitleRequest(BaseModel):
     )
 
 
-class TranscribeTaskInfo(BaseModel):
-    """转录任务信息"""
-
-    task_id: Optional[str] = Field(None, description="转录任务ID")
-    status: Optional[str] = Field(None, description="转录任务状态")
-    progress: Optional[int] = Field(None, description="转录任务进度")
-    message: Optional[str] = Field(None, description="转录任务消息")
-
-
-class VideoTaskInfo(BaseModel):
-    """视频下载任务信息"""
-
-    task_id: Optional[str] = Field(None, description="视频下载任务ID")
-    status: Optional[str] = Field(None, description="视频下载任务状态")
-    progress: Optional[int] = Field(None, description="视频下载任务进度")
-    message: Optional[str] = Field(None, description="视频下载任务消息")
-
-
 class SubtitleResponse(TaskResponse):
     """字幕处理响应"""
-
-    transcribe_task: Optional[TranscribeTaskInfo] = Field(
-        None, description="关联的转录任务信息"
-    )
-    video_task: Optional[VideoTaskInfo] = Field(
-        None, description="关联的视频下载任务信息"
-    )
 
 
 class DictionaryQueryRequest(BaseModel):

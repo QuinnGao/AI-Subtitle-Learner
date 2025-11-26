@@ -6,14 +6,7 @@
       "type": "debugpy",
       "request": "launch",
       "module": "uvicorn",
-      "args": [
-        "app.main:app",
-        "--host",
-        "0.0.0.0",
-        "--port",
-        "8000",
-        "--reload"
-      ],
+      "args": ["app.main:app", "--host", "0.0.0.0", "--port", "8000", "--reload"],
       "jinja": true,
       "justMyCode": false,
       "env": {
@@ -31,13 +24,7 @@
       "type": "debugpy",
       "request": "launch",
       "module": "uvicorn",
-      "args": [
-        "app.main:app",
-        "--host",
-        "0.0.0.0",
-        "--port",
-        "8000"
-      ],
+      "args": ["app.main:app", "--host", "0.0.0.0", "--port", "8000"],
       "jinja": true,
       "justMyCode": false,
       "env": {
@@ -73,7 +60,6 @@
       "cwd": "${workspaceFolder}/web",
       "console": "integratedTerminal",
       "internalConsoleOptions": "neverOpen",
-      "port": 9229,
       "skipFiles": ["<node_internals>/**"],
       "env": {
         "NEXT_PUBLIC_API_BASE_URL": "http://localhost:8000/api/v1"
@@ -84,15 +70,10 @@
       "type": "node",
       "request": "launch",
       "runtimeExecutable": "node",
-      "runtimeArgs": [
-        "--inspect",
-        "${workspaceFolder}/web/node_modules/.bin/next",
-        "dev"
-      ],
+      "runtimeArgs": ["--inspect=9229", "${workspaceFolder}/web/node_modules/.bin/next", "dev"],
       "cwd": "${workspaceFolder}/web",
       "console": "integratedTerminal",
       "internalConsoleOptions": "neverOpen",
-      "port": 9229,
       "skipFiles": ["<node_internals>/**"],
       "env": {
         "NEXT_PUBLIC_API_BASE_URL": "http://localhost:8000/api/v1"
@@ -103,13 +84,7 @@
       "type": "debugpy",
       "request": "launch",
       "module": "pytest",
-      "args": [
-        "${workspaceFolder}/tests",
-        "-v",
-        "--tb=short",
-        "--cov=app",
-        "--cov-report=html"
-      ],
+      "args": ["${workspaceFolder}/tests", "-v", "--tb=short", "--cov=app", "--cov-report=html"],
       "console": "integratedTerminal",
       "justMyCode": false,
       "env": {
@@ -125,11 +100,7 @@
       "type": "debugpy",
       "request": "launch",
       "module": "pytest",
-      "args": [
-        "${file}",
-        "-v",
-        "--tb=short"
-      ],
+      "args": ["${file}", "-v", "--tb=short"],
       "console": "integratedTerminal",
       "justMyCode": false,
       "env": {
@@ -145,12 +116,7 @@
       "type": "debugpy",
       "request": "launch",
       "module": "pytest",
-      "args": [
-        "${workspaceFolder}/tests",
-        "-v",
-        "--tb=short",
-        "-f"
-      ],
+      "args": ["${workspaceFolder}/tests", "-v", "--tb=short", "-f"],
       "console": "integratedTerminal",
       "justMyCode": false,
       "env": {
@@ -181,12 +147,13 @@
       "name": "Python: Debug Video Download Service",
       "type": "debugpy",
       "request": "launch",
-      "program": "${workspaceFolder}/app/services/video_download_service.py",
+      "program": "${workspaceFolder}/app/celery/services/video_download_service.py",
       "console": "integratedTerminal",
       "justMyCode": false,
       "env": {
         "PYTHONPATH": "${workspaceFolder}",
-        "PYTHONUNBUFFERED": "1"
+        "PYTHONUNBUFFERED": "1",
+        "LOG_LEVEL": "DEBUG"
       },
       "envFile": "${workspaceFolder}/.env",
       "cwd": "${workspaceFolder}",
@@ -196,12 +163,29 @@
       "name": "Python: Debug Subtitle Service",
       "type": "debugpy",
       "request": "launch",
-      "program": "${workspaceFolder}/app/services/subtitle_service.py",
+      "program": "${workspaceFolder}/app/celery/services/subtitle_service.py",
       "console": "integratedTerminal",
       "justMyCode": false,
       "env": {
         "PYTHONPATH": "${workspaceFolder}",
-        "PYTHONUNBUFFERED": "1"
+        "PYTHONUNBUFFERED": "1",
+        "LOG_LEVEL": "DEBUG"
+      },
+      "envFile": "${workspaceFolder}/.env",
+      "cwd": "${workspaceFolder}",
+      "python": "${command:python.interpreterPath}"
+    },
+    {
+      "name": "Python: Debug Transcribe Service",
+      "type": "debugpy",
+      "request": "launch",
+      "program": "${workspaceFolder}/app/celery/services/transcribe_service.py",
+      "console": "integratedTerminal",
+      "justMyCode": false,
+      "env": {
+        "PYTHONPATH": "${workspaceFolder}",
+        "PYTHONUNBUFFERED": "1",
+        "LOG_LEVEL": "DEBUG"
       },
       "envFile": "${workspaceFolder}/.env",
       "cwd": "${workspaceFolder}",
@@ -214,7 +198,7 @@
       "module": "celery",
       "args": [
         "-A",
-        "app.celery_app",
+        "app.celery",
         "worker",
         "--loglevel=info",
         "--concurrency=1",
@@ -243,7 +227,7 @@
       "module": "celery",
       "args": [
         "-A",
-        "app.celery_app",
+        "app.celery",
         "worker",
         "--loglevel=debug",
         "--concurrency=1",
@@ -265,29 +249,60 @@
       "cwd": "${workspaceFolder}",
       "console": "integratedTerminal",
       "python": "${command:python.interpreterPath}"
+    },
+    {
+      "name": "Python: Celery Beat (Scheduler)",
+      "type": "debugpy",
+      "request": "launch",
+      "module": "celery",
+      "args": ["-A", "app.celery", "beat", "--loglevel=info"],
+      "jinja": true,
+      "justMyCode": false,
+      "env": {
+        "PYTHONPATH": "${workspaceFolder}",
+        "PYTHONUNBUFFERED": "1",
+        "LOG_LEVEL": "DEBUG",
+        "C_FORCE_ROOT": "true",
+        "LOGURU_DISABLE_ENQUEUE": "true"
+      },
+      "envFile": "${workspaceFolder}/.env",
+      "cwd": "${workspaceFolder}",
+      "console": "integratedTerminal",
+      "python": "${command:python.interpreterPath}"
+    },
+    {
+      "name": "Python: Celery Flower (Monitor)",
+      "type": "debugpy",
+      "request": "launch",
+      "module": "celery",
+      "args": ["-A", "app.celery", "flower", "--port=5555"],
+      "jinja": true,
+      "justMyCode": false,
+      "env": {
+        "PYTHONPATH": "${workspaceFolder}",
+        "PYTHONUNBUFFERED": "1",
+        "LOG_LEVEL": "DEBUG"
+      },
+      "envFile": "${workspaceFolder}/.env",
+      "cwd": "${workspaceFolder}",
+      "console": "integratedTerminal",
+      "python": "${command:python.interpreterPath}"
     }
   ],
   "compounds": [
     {
       "name": "Full Stack: API + Web",
-      "configurations": [
-        "Python: FastAPI (API Server)",
-        "Next.js: Web Frontend (Dev)"
-      ],
+      "configurations": ["Python: FastAPI (API Server)", "Next.js: Web Frontend (Dev)"],
       "presentation": {
         "hidden": false,
         "group": "fullstack",
         "order": 1
       },
-      "stopAll": true,
-      "preLaunchTask": null
+      "stopAll": true
     },
     {
       "name": "Full Stack: API + Web (No Reload)",
-      "configurations": [
-        "Python: FastAPI (No Reload)",
-        "Next.js: Web Frontend (Dev)"
-      ],
+      "configurations": ["Python: FastAPI (No Reload)", "Next.js: Web Frontend (Dev)"],
       "presentation": {
         "hidden": false,
         "group": "fullstack",

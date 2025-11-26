@@ -2,13 +2,19 @@
 字幕处理服务
 """
 
+import json
+import tempfile
 from pathlib import Path
+
+from langdetect import LangDetectException, detect
 
 from app.schemas.subtitle import SubtitleRequest
 from app.services.task_manager import get_task_manager
 from app.core.asr.asr_data import ASRData
 from app.core.entities import (
     SubtitleConfig as CoreSubtitleConfig,
+    SubtitleLayoutEnum,
+    TranslatorServiceEnum,
 )
 from app.core.analyze.japanese_analyzer import JapaneseAnalyzer
 from app.core.split.split import SubtitleSplitter
@@ -20,6 +26,7 @@ from app.core.translate import (
 from app.core.llm.health_check import get_health_checker
 from app.core.utils.logger import setup_logger
 from app.config import LLM_API_BASE, LLM_API_KEY, LLM_MODEL, CACHE_PATH
+from app.core.storage import get_storage
 
 task_manager = get_task_manager()
 logger = setup_logger("subtitle_service")
@@ -110,9 +117,6 @@ class SubtitleService:
         Returns:
             缓存的数据，如果文件不存在则返回 None
         """
-        from app.core.storage import get_storage
-        import tempfile
-        import json
         
         # 生成 MinIO 对象名称（使用 cache/ 前缀）
         object_name = f"cache/{str(cache_path).replace('\\', '/').lstrip('/')}"
@@ -151,9 +155,6 @@ class SubtitleService:
             cache_path: 缓存文件路径（本地路径格式，用于生成 MinIO 对象名称）
             data: 要保存的数据（必须是可 JSON 序列化的）
         """
-        from app.core.storage import get_storage
-        import tempfile
-        import json
         
         # 生成 MinIO 对象名称（使用 cache/ 前缀）
         object_name = f"cache/{str(cache_path).replace('\\', '/').lstrip('/')}"
@@ -214,8 +215,6 @@ class SubtitleService:
         subtitle_path_str = str(subtitle_path)
 
         # 检查是否是 MinIO 对象
-        from app.core.storage import get_storage
-
         storage = get_storage()
         if storage.file_exists(subtitle_path_str):
             logger.info(f"[任务 {task_id}] 字幕文件存在于 MinIO: {subtitle_path_str}")
@@ -232,6 +231,59 @@ class SubtitleService:
         error_msg = f"字幕文件不存在: {subtitle_path}"
         logger.error(f"[任务 {task_id}] {error_msg}")
         raise ValueError(error_msg)
+
+    def _validate_language(self, task_id: str, asr_data: ASRData) -> None:
+        """验证视频语言是否为日语
+        
+        Args:
+            task_id: 任务ID
+            asr_data: 字幕数据
+            
+        Raises:
+            ValueError: 如果检测到的语言不是日语
+        """
+        logger.info(f"[任务 {task_id}] 开始检测视频语言")
+        
+        if not asr_data.has_data():
+            error_msg = "字幕数据为空，无法检测语言"
+            logger.error(f"[任务 {task_id}] {error_msg}")
+            raise ValueError(error_msg)
+        
+        # 收集字幕文本样本（取前20条或前1000个字符）
+        sample_texts = []
+        total_chars = 0
+        max_chars = 1000
+        max_segments = 20
+        
+        for seg in asr_data.segments:
+            if seg.text and seg.text.strip():
+                sample_texts.append(seg.text.strip())
+                total_chars += len(seg.text)
+                if len(sample_texts) >= max_segments or total_chars >= max_chars:
+                    break
+        
+        if not sample_texts:
+            error_msg = "字幕中没有有效的文本内容，无法检测语言"
+            logger.error(f"[任务 {task_id}] {error_msg}")
+            raise ValueError(error_msg)
+        
+        # 合并文本进行检测
+        combined_text = " ".join(sample_texts)
+        
+        try:
+            detected_lang = detect(combined_text)
+            logger.info(f"[任务 {task_id}] 检测到语言: {detected_lang}")
+            
+            if detected_lang != "ja":
+                error_msg = f"检测到视频语言为 {detected_lang}，目前仅支持日语视频。请使用日语视频进行分析。"
+                logger.error(f"[任务 {task_id}] {error_msg}")
+                raise ValueError(error_msg)
+            
+            logger.info(f"[任务 {task_id}] 语言验证通过：确认为日语")
+        except LangDetectException as e:
+            error_msg = f"无法检测视频语言: {str(e)}。请确保字幕包含有效的文本内容。"
+            logger.error(f"[任务 {task_id}] {error_msg}")
+            raise ValueError(error_msg)
 
     def _prepare_config(self, task_id: str, config) -> CoreSubtitleConfig:
         """准备配置（使用环境变量默认值并转换）"""
@@ -257,9 +309,6 @@ class SubtitleService:
         subtitle_path_str = str(subtitle_path)
 
         # 检查是否是 MinIO 对象，如果是则下载到临时文件
-        from app.core.storage import get_storage
-        import tempfile
-
         storage = get_storage()
 
         if storage.file_exists(subtitle_path_str):
@@ -586,6 +635,9 @@ class SubtitleService:
             # 3. 加载字幕数据
             asr_data = self._load_subtitle_data(task_id, subtitle_path)
 
+            # 3.5. 检测视频语言，如果不是日语则返回错误
+            self._validate_language(task_id, asr_data)
+
             # 4. 计算输出文件名
             output_name = self._calculate_output_name(subtitle_path)
 
@@ -635,11 +687,6 @@ class SubtitleService:
 
     def _convert_config(self, config) -> CoreSubtitleConfig:
         """转换配置格式"""
-        from app.core.entities import (
-            TranslatorServiceEnum,
-            SubtitleLayoutEnum,
-        )
-
         return CoreSubtitleConfig(
             base_url=config.base_url,
             api_key=config.api_key,
@@ -679,7 +726,6 @@ class SubtitleService:
         目前仅支持 LLM 翻译服务。
         TODO: 后续添加其他翻译服务支持（Bing、Google 等）
         """
-        from app.core.entities import TranslatorServiceEnum
 
         logger.debug(
             f"创建翻译器: service={config.translator_service}, "

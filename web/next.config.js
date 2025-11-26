@@ -17,6 +17,12 @@ const nextConfig = {
   generateBuildId: async () => {
     return 'build-' + Date.now()
   },
+  // 环境变量配置
+  env: {
+    // 确保环境变量在构建时可用
+    NEXT_PUBLIC_API_BASE_URL: process.env.NEXT_PUBLIC_API_BASE_URL || '/api/v1',
+    NEXT_PUBLIC_ENV: process.env.NEXT_PUBLIC_ENV || process.env.NODE_ENV || 'development',
+  },
 }
 
 module.exports = nextConfig

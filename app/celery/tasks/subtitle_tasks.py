@@ -37,8 +37,6 @@ def subtitle_task(self, task_id: str, request_dict: dict):
         logger.info(f"[Celery Task] 开始执行字幕处理任务: task_id={task_id}")
 
         # 从字典重建 SubtitleRequest 对象
-        from app.schemas.subtitle import SubtitleRequest, SubtitleConfig
-
         request = SubtitleRequest(**request_dict)
 
         # 在事件循环中运行异步函数
@@ -83,4 +81,3 @@ def subtitle_task(self, task_id: str, request_dict: dict):
         )
         # 重新抛出异常以触发重试
         raise
-

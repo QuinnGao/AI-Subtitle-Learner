@@ -1,13 +1,17 @@
 import os
+import pickle
+import tempfile
 import threading
 import time
 import uuid
 import zlib
 from io import BytesIO
+from pathlib import Path
 from typing import Callable, Optional, Union, cast
 
 from pydub import AudioSegment
 
+from app.core.storage import get_storage
 from app.core.utils.cache import get_asr_cache, is_cache_enabled
 from app.core.utils.logger import setup_logger
 
@@ -68,10 +72,6 @@ class BaseASR:
             )
 
             # 检查是否是 MinIO 对象
-            from app.core.storage import get_storage
-            import tempfile
-            from pathlib import Path
-
             storage = get_storage()
             if storage.file_exists(self.audio_path):
                 # 从 MinIO 下载到临时文件
@@ -128,8 +128,6 @@ class BaseASR:
             cached_result = self._cache.get(cache_key)
             if cached_result is not None:
                 # 反序列化缓存结果
-                import pickle
-
                 cached_result = pickle.loads(cached_result)
                 cached_result = cast(Optional[dict], cached_result)
                 logger.info("找到缓存，直接返回")
@@ -140,8 +138,6 @@ class BaseASR:
         resp_data = self._run(callback, **kwargs)
 
         # Cache result
-        import pickle
-
         cached_data = pickle.dumps(resp_data)
         self._cache.setex(cache_key, 86400 * 2, cached_data)
 
@@ -204,8 +200,6 @@ class BaseASR:
         for (key,) in results:
             duration_bytes = self._cache.get(key)
             if duration_bytes is not None:
-                import pickle
-
                 duration = pickle.loads(duration_bytes)
                 if isinstance(duration, (int, float)):
                     durations.append(duration)
@@ -226,8 +220,6 @@ class BaseASR:
             raise RuntimeError(error_msg)
 
         # Record current call (store duration directly as float)
-        import pickle
-
         duration_bytes = pickle.dumps(self.audio_duration)
         expire_time = int(self.RATE_LIMIT_TIME_WINDOW) + 3600
         self._cache.setex(
