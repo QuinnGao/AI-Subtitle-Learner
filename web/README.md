@@ -1,220 +1,87 @@
 # AI Subtitle Learner Frontend
 
-基于 Next.js、Tailwind CSS、shadcn/ui 和 i18next 的AI字幕学习前端应用。
+AI Subtitle Learner frontend built with Next.js, Tailwind CSS, shadcn/ui and i18next.
 
-## 功能特性
+## Features
 
-- 🎬 输入 YouTube URL 获取字幕
-- 📝 支持字幕文件路径输入
-- 🔄 实时任务状态轮询
-- 📊 进度条显示
-- 🌐 国际化支持（中文/英文）
-- 💾 字幕文件下载
+- 🎬 Input YouTube URL to get subtitles
+- 📝 Support providing subtitle file path
+- 🔄 Polling for task status in real time
+- 📊 Progress bar display
+- 🌐 i18n support (Chinese / English)
+- 💾 Download processed subtitle files
 
-## 技术栈
+## Tech Stack
 
-- **Next.js 14** - React 框架
-- **Tailwind CSS** - 样式框架
-- **shadcn/ui** - UI 组件库
-- **i18next** - 国际化
-- **TypeScript** - 类型安全
-- **ESLint** - 代码检查
-- **Prettier** - 代码格式化
+- **Next.js 14** – React framework
+- **Tailwind CSS** – Styling
+- **shadcn/ui** – UI components
+- **i18next** – Internationalization
+- **TypeScript** – Type safety
+- **ESLint** / **Prettier** – Linting & formatting
 
-## 安装
+## Installation
 
 ```bash
 cd web
 npm install
 ```
 
-## 环境配置
+## Environment & Running
 
-项目支持两种运行环境：**本地开发环境** 和 **生产环境**。
+### Local development
 
-### 本地开发环境（Local Development）
+- Backend API: `http://localhost:8000`
+- Frontend dev server: `http://localhost:3000`
+- Example `.env.local`:
 
-适用于本地开发调试，直接访问后端服务。
+  ```env
+  NEXT_PUBLIC_API_BASE_URL=http://localhost:8000/api/v1
+  NEXT_PUBLIC_ENV=development
+  ```
 
-1. **复制环境变量示例文件**：
-```bash
-cp .env.local.example .env.local
-```
+- Start dev server:
 
-2. **编辑 `.env.local` 文件**：
-```env
-# 本地开发环境配置
-# 直接访问后端服务（不通过 Nginx）
-NEXT_PUBLIC_API_BASE_URL=http://localhost:8000/api/v1
-NEXT_PUBLIC_ENV=development
-```
+  ```bash
+  npm run dev
+  ```
 
-3. **启动开发服务器**：
-```bash
-npm run dev
-```
+### Production / Docker
 
-**说明**：
-- 本地开发时，前端运行在 `http://localhost:3000`
-- 后端 API 运行在 `http://localhost:8000`
-- 前端直接访问后端，不经过 Nginx 反向代理
+- Usually served behind Nginx at `http://localhost`
+- API base path: `/api/v1` (proxied by Nginx)
+- Build & start:
 
-### 生产环境（Production）
+  ```bash
+  npm run build
+  npm start
+  ```
 
-适用于 Docker 部署，通过 Nginx 反向代理访问。
+- Or via Docker Compose from project root:
 
-1. **Docker Compose 部署**（推荐）：
-   - 环境变量已在 `docker-compose.yml` 中配置
-   - 默认使用相对路径 `/api/v1`
-   - 通过 Nginx 反向代理统一访问
+  ```bash
+  docker-compose up -d web
+  ```
 
-2. **手动构建生产版本**：
-```bash
-# 复制生产环境配置
-cp .env.production.example .env.production
+## Code Quality
 
-# 构建生产版本
-npm run build
+- Lint: `npm run lint` / `npm run lint:fix`
+- Format: `npm run format` / `npm run format:check`
 
-# 启动生产服务器
-npm start
-```
+## Usage
 
-**说明**：
-- 生产环境通过 Nginx 反向代理访问
-- 前端访问地址：`http://localhost`（Nginx:80）
-- API 访问路径：`/api/v1`（由 Nginx 代理到后端）
+1. Enter a YouTube video URL (e.g. `https://www.youtube.com/watch?v=...`) or a subtitle file path.
+2. Click **Submit** to create a processing task.
+3. The frontend polls task status and shows progress.
+4. After completion, download the processed subtitle file.
 
-### 环境变量说明
+## Project Structure
 
-| 变量名 | 本地开发 | 生产环境 | 说明 |
-|--------|---------|---------|------|
-| `NEXT_PUBLIC_API_BASE_URL` | `http://localhost:8000/api/v1` | `/api/v1` | API 基础地址 |
-| `NEXT_PUBLIC_ENV` | `development` | `production` | 环境标识（可选） |
-
-### 配置文件优先级
-
-Next.js 环境变量加载顺序（优先级从高到低）：
-1. `.env.local` - 本地开发配置（所有环境，优先级最高）
-2. `.env.development` - 开发环境配置
-3. `.env.production` - 生产环境配置
-4. `.env` - 默认配置（所有环境）
-
-**注意**：`.env.local` 文件不会被提交到 Git，用于本地开发配置。
-
-## 运行
-
-### 本地开发模式
-
-```bash
-# 1. 配置环境变量（首次运行）
-cp .env.local.example .env.local
-# 编辑 .env.local，设置 NEXT_PUBLIC_API_BASE_URL=http://localhost:8000/api/v1
-
-# 2. 启动开发服务器
-npm run dev
-```
-
-应用将在 [http://localhost:3000](http://localhost:3000) 启动。
-
-**前提条件**：
-- 确保后端 API 服务正在运行（`http://localhost:8000`）
-- 或使用 Docker Compose 启动所有服务
-
-### 生产构建
-
-```bash
-# 构建生产版本
-npm run build
-
-# 启动生产服务器
-npm start
-```
-
-### Docker 部署
-
-使用 Docker Compose 部署（推荐）：
-
-```bash
-# 在项目根目录
-docker-compose up -d web
-```
-
-生产环境配置已在 `docker-compose.yml` 中设置，无需额外配置。
-
-## 代码质量
-
-### Linting
-
-检查代码问题：
-
-```bash
-npm run lint
-```
-
-自动修复可修复的问题：
-
-```bash
-npm run lint:fix
-```
-
-### 代码格式化
-
-格式化所有代码文件：
-
-```bash
-npm run format
-```
-
-检查代码格式（不修改文件）：
-
-```bash
-npm run format:check
-```
-
-### 配置说明
-
-- **ESLint**: 使用 Next.js 推荐的配置，并集成了 Prettier
-- **Prettier**: 配置了 Tailwind CSS 插件，自动排序 Tailwind 类名
-- **EditorConfig**: 统一编辑器配置，确保团队代码风格一致
-
-配置文件：
-- `.eslintrc.json` - ESLint 配置
-- `.prettierrc.json` - Prettier 配置
-- `.prettierignore` - Prettier 忽略文件
-- `.editorconfig` - EditorConfig 配置
-
-## 使用说明
-
-1. 在输入框中输入 YouTube 视频 URL（例如：`https://www.youtube.com/watch?v=...`）
-2. 或者直接输入字幕文件路径
-3. 点击"提交"按钮创建处理任务
-4. 系统会自动轮询任务状态并显示进度
-5. 任务完成后可以下载处理好的字幕文件
-
-## 项目结构
-
-```
+```text
 web/
 ├── app/              # Next.js App Router
-│   ├── layout.tsx    # 根布局
-│   ├── page.tsx      # 主页面
-│   └── globals.css   # 全局样式
-├── components/       # React 组件
-│   └── ui/          # shadcn/ui 组件
-├── lib/             # 工具函数和配置
-│   ├── api.ts       # API 客户端
-│   ├── i18n.ts      # i18next 配置
-│   └── utils.ts     # 工具函数
-└── locales/         # 国际化文件
-    ├── zh-CN.json   # 中文
-    └── en-US.json   # 英文
+├── components/       # React components (incl. shadcn/ui)
+├── lib/              # API client, i18n config, utilities
+└── locales/          # i18n resources (zh-CN / en-US)
 ```
-
-## 注意事项
-
-- 确保后端 API 服务正在运行
-- YouTube URL 需要是有效的视频链接
-- 字幕文件路径需要是后端可访问的路径
-- 如果后端需要先下载 YouTube 视频/字幕，可能需要额外的 API 调用
 
