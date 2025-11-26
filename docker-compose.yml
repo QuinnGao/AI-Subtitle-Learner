@@ -1,11 +1,34 @@
 services:
+  nginx:
+    build:
+      context: ./nginx
+      dockerfile: Dockerfile
+    container_name: ai-subtitle-learner-nginx
+    ports:
+      - "80:80"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+    depends_on:
+      - api
+      - web
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "wget --quiet --tries=1 --spider http://localhost/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+    networks:
+      - ai-subtitle-learner-network
+
   api:
     build:
       context: .
       dockerfile: Dockerfile
-    container_name: video-subtitle-api
-    ports:
-      - "8000:8000"
+    container_name: ai-subtitle-learner-api
+    # 端口暴露（可选，通过 nginx 反向代理访问，保留用于直接访问）
+    # ports:
+    #   - "8000:8000"
     volumes:
       # 工作目录 - 存储处理中的文件
       - ./workspace:/app/workspace
@@ -63,14 +86,20 @@ services:
       retries: 3
       start_period: 40s
     networks:
-      - video-subtitle-network
+      - ai-subtitle-learner-network
 
   worker:
     build:
       context: .
       dockerfile: Dockerfile
-    container_name: video-subtitle-worker
-    command: celery -A app.celery worker --loglevel=info --concurrency=2 --max-tasks-per-child=10 -Q default,video,transcribe,subtitle
+    container_name: ai-subtitle-learner-worker
+    command: celery -A app.celery worker --loglevel=info --concurrency=1 --max-tasks-per-child=5 -Q default,video,transcribe,subtitle
+    deploy:
+      resources:
+        limits:
+          memory: 20G
+        reservations:
+          memory: 4G
     volumes:
       # 工作目录 - 存储处理中的文件
       - ./workspace:/app/workspace
@@ -123,11 +152,11 @@ services:
         condition: service_healthy
     restart: unless-stopped
     networks:
-      - video-subtitle-network
+      - ai-subtitle-learner-network
 
   postgres:
     image: postgres:15-alpine
-    container_name: video-subtitle-postgres
+    container_name: ai-subtitle-learner-postgres
     environment:
       - POSTGRES_USER=${POSTGRES_USER:-subtitle}
       - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-subtitle}
@@ -143,11 +172,11 @@ services:
       retries: 5
     restart: unless-stopped
     networks:
-      - video-subtitle-network
+      - ai-subtitle-learner-network
 
   redis:
     image: redis:7-alpine
-    container_name: video-subtitle-redis
+    container_name: ai-subtitle-learner-redis
     ports:
       - "6379:6379"
     volumes:
@@ -160,11 +189,11 @@ services:
       retries: 5
     restart: unless-stopped
     networks:
-      - video-subtitle-network
+      - ai-subtitle-learner-network
 
   rabbitmq:
     image: rabbitmq:3-management-alpine
-    container_name: video-subtitle-rabbitmq
+    container_name: ai-subtitle-learner-rabbitmq
     environment:
       - RABBITMQ_DEFAULT_USER=${RABBITMQ_USER:-guest}
       - RABBITMQ_DEFAULT_PASS=${RABBITMQ_PASSWORD:-guest}
@@ -180,11 +209,11 @@ services:
       retries: 5
     restart: unless-stopped
     networks:
-      - video-subtitle-network
+      - ai-subtitle-learner-network
 
   minio:
     image: minio/minio:latest
-    container_name: video-subtitle-minio
+    container_name: ai-subtitle-learner-minio
     command: server /data --console-address ":9001"
     environment:
       - MINIO_ROOT_USER=${MINIO_ACCESS_KEY:-minioadmin}
@@ -201,21 +230,21 @@ services:
       retries: 3
     restart: unless-stopped
     networks:
-      - video-subtitle-network
+      - ai-subtitle-learner-network
 
   web:
     build:
       context: ./web
       dockerfile: Dockerfile
-    container_name: video-subtitle-web
-    ports:
-      - "3000:3000"
+    container_name: ai-subtitle-learner-web
+    # 端口暴露（可选，通过 nginx 反向代理访问，保留用于直接访问）
+    # ports:
+    #   - "3000:3000"
     environment:
       - NODE_ENV=production
-      # 浏览器访问时使用localhost，容器内服务端访问使用api服务名
-      # 如果前端和后端在同一主机，浏览器访问应使用 http://localhost:8000/api/v1
-      # 如果使用反向代理，可以设置为相对路径 /api/v1
-      - NEXT_PUBLIC_API_BASE_URL=${NEXT_PUBLIC_API_BASE_URL:-http://localhost:8000/api/v1}
+      # 使用 nginx 反向代理时，使用相对路径
+      # 如果直接访问，可以设置为 http://localhost:8000/api/v1
+      - NEXT_PUBLIC_API_BASE_URL=${NEXT_PUBLIC_API_BASE_URL:-/api/v1}
     depends_on:
       - api
     restart: unless-stopped
@@ -226,7 +255,7 @@ services:
       retries: 3
       start_period: 40s
     networks:
-      - video-subtitle-network
+      - ai-subtitle-learner-network
 
 volumes:
   postgres_data:
@@ -235,7 +264,7 @@ volumes:
   minio_data:
 
 networks:
-  video-subtitle-network:
+  ai-subtitle-learner-network:
     driver: bridge
 
 

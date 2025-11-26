@@ -15,6 +15,11 @@ COPY . .
 
 # 构建应用
 ENV NEXT_TELEMETRY_DISABLED=1
+# 设置生产环境变量（构建时）
+ARG NEXT_PUBLIC_API_BASE_URL=/api/v1
+ARG NEXT_PUBLIC_ENV=production
+ENV NEXT_PUBLIC_API_BASE_URL=${NEXT_PUBLIC_API_BASE_URL}
+ENV NEXT_PUBLIC_ENV=${NEXT_PUBLIC_ENV}
 # 使用开发模式构建，避免静态生成问题
 RUN npm run build
 
@@ -23,7 +28,7 @@ FROM node:20-alpine AS runner
 
 WORKDIR /app
 
-ENV NODE_ENV production
+ENV NODE_ENV=production
 
 # 安装curl用于健康检查
 RUN apk add --no-cache curl
@@ -42,8 +47,8 @@ USER nextjs
 # 暴露端口
 EXPOSE 3000
 
-ENV PORT 3000
-ENV NODE_ENV production
+ENV PORT=3000
+ENV NODE_ENV=production
 
 # 启动应用
 CMD ["node", "server.js"]

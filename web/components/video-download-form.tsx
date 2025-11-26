@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Loader2, Video } from "lucide-react";
 import { useToast } from "@/components/ui/use-toast";
-import { downloadVideoByUrl } from "@/lib/api";
+import { startVideoAnalysis } from "@/lib/api";
 
 interface VideoDownloadFormProps {
   onTaskCreated: (taskId: string) => void;
@@ -50,7 +50,7 @@ export function VideoDownloadForm({ onTaskCreated, disabled = false, isLoading =
     setIsSubmitting(true);
 
     try {
-      const response = await downloadVideoByUrl(youtubeUrl.trim());
+      const response = await startVideoAnalysis(youtubeUrl.trim());
 
       onTaskCreated(response.task_id);
       setIsSubmitting(false);

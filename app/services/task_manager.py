@@ -3,7 +3,7 @@
 """
 
 import uuid
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Optional
 
 from sqlalchemy.orm import Session
@@ -54,7 +54,7 @@ class TaskManager:
             task = Task(
                 task_id=task_id,
                 status=TaskStatus.PENDING,
-                queued_at=datetime.utcnow(),
+                queued_at=datetime.now(timezone.utc),
                 task_type=task_type,
                 video_url=video_url,
             )

@@ -2,13 +2,19 @@
 字幕处理服务
 """
 
+import json
+import tempfile
 from pathlib import Path
+
 
 from app.schemas.subtitle import SubtitleRequest
 from app.services.task_manager import get_task_manager
 from app.core.asr.asr_data import ASRData
+from app.core.constants import TaskStatus
 from app.core.entities import (
     SubtitleConfig as CoreSubtitleConfig,
+    SubtitleLayoutEnum,
+    TranslatorServiceEnum,
 )
 from app.core.analyze.japanese_analyzer import JapaneseAnalyzer
 from app.core.split.split import SubtitleSplitter
@@ -20,6 +26,7 @@ from app.core.translate import (
 from app.core.llm.health_check import get_health_checker
 from app.core.utils.logger import setup_logger
 from app.config import LLM_API_BASE, LLM_API_KEY, LLM_MODEL, CACHE_PATH
+from app.core.storage import get_storage
 
 task_manager = get_task_manager()
 logger = setup_logger("subtitle_service")
@@ -110,18 +117,17 @@ class SubtitleService:
         Returns:
             缓存的数据，如果文件不存在则返回 None
         """
-        from app.core.storage import get_storage
-        import tempfile
-        import json
-        
+
         # 生成 MinIO 对象名称（使用 cache/ 前缀）
         object_name = f"cache/{str(cache_path).replace('\\', '/').lstrip('/')}"
-        
+
         storage = get_storage()
         if storage.file_exists(object_name):
             try:
                 # 从 MinIO 下载到临时文件
-                with tempfile.NamedTemporaryFile(delete=False, suffix=".json") as tmp_file:
+                with tempfile.NamedTemporaryFile(
+                    delete=False, suffix=".json"
+                ) as tmp_file:
                     tmp_path = tmp_file.name
                 storage.download_file(object_name, tmp_path)
                 try:
@@ -132,7 +138,7 @@ class SubtitleService:
             except Exception as e:
                 logger.warning(f"从 MinIO 加载缓存失败: {object_name}, 错误: {e}")
                 return None
-        
+
         # 兼容：检查本地文件（向后兼容）
         if cache_path.exists():
             try:
@@ -141,7 +147,7 @@ class SubtitleService:
             except Exception as e:
                 logger.warning(f"加载本地缓存失败: {cache_path}, 错误: {e}")
                 return None
-        
+
         return None
 
     def _save_to_cache(self, cache_path: Path, data):
@@ -151,19 +157,18 @@ class SubtitleService:
             cache_path: 缓存文件路径（本地路径格式，用于生成 MinIO 对象名称）
             data: 要保存的数据（必须是可 JSON 序列化的）
         """
-        from app.core.storage import get_storage
-        import tempfile
-        import json
-        
+
         # 生成 MinIO 对象名称（使用 cache/ 前缀）
         object_name = f"cache/{str(cache_path).replace('\\', '/').lstrip('/')}"
-        
+
         try:
             # 保存到临时文件，然后上传到 MinIO
-            with tempfile.NamedTemporaryFile(mode="w", delete=False, suffix=".json", encoding="utf-8") as tmp_file:
+            with tempfile.NamedTemporaryFile(
+                mode="w", delete=False, suffix=".json", encoding="utf-8"
+            ) as tmp_file:
                 tmp_path = tmp_file.name
                 json.dump(data, tmp_file, ensure_ascii=False, indent=2)
-            
+
             storage = get_storage()
             storage.upload_file(tmp_path, object_name=object_name)
             logger.debug(f"缓存已保存到 MinIO: {object_name}")
@@ -178,7 +183,7 @@ class SubtitleService:
                 logger.warning(f"保存本地缓存也失败: {cache_path}, 错误: {e2}")
         finally:
             # 清理临时文件
-            if 'tmp_path' in locals():
+            if "tmp_path" in locals():
                 Path(tmp_path).unlink(missing_ok=True)
 
     def _get_subtitle_path_from_db(self, task_id: str) -> Path:
@@ -214,8 +219,6 @@ class SubtitleService:
         subtitle_path_str = str(subtitle_path)
 
         # 检查是否是 MinIO 对象
-        from app.core.storage import get_storage
-
         storage = get_storage()
         if storage.file_exists(subtitle_path_str):
             logger.info(f"[任务 {task_id}] 字幕文件存在于 MinIO: {subtitle_path_str}")
@@ -229,7 +232,7 @@ class SubtitleService:
             return
 
         # 文件不存在
-        error_msg = f"字幕文件不存在: {subtitle_path}"
+        error_msg = f"Subtitle file does not exist: {subtitle_path}"
         logger.error(f"[任务 {task_id}] {error_msg}")
         raise ValueError(error_msg)
 
@@ -257,9 +260,6 @@ class SubtitleService:
         subtitle_path_str = str(subtitle_path)
 
         # 检查是否是 MinIO 对象，如果是则下载到临时文件
-        from app.core.storage import get_storage
-        import tempfile
-
         storage = get_storage()
 
         if storage.file_exists(subtitle_path_str):
@@ -297,7 +297,9 @@ class SubtitleService:
         """验证 LLM 配置（如果需要 LLM）"""
         if self._need_llm(core_config, asr_data):
             logger.info(f"[任务 {task_id}] 需要 LLM，开始验证 LLM 配置")
-            self.task_manager.update_task(task_id, progress=2, message="验证 LLM 配置")
+            self.task_manager.update_task(
+                task_id, progress=2, message="Validating LLM configuration"
+            )
             # 使用健康检查器验证并设置 LLM 配置（全局统一处理，自动处理错误）
             # 从环境变量获取配置
             health_checker = get_health_checker()
@@ -329,7 +331,9 @@ class SubtitleService:
             )
         else:
             logger.info(f"[任务 {task_id}] 开始重新断句（字词级字幕）")
-            self.task_manager.update_task(task_id, progress=10, message="字幕断句中")
+            self.task_manager.update_task(
+                task_id, progress=10, message="Splitting subtitles"
+            )
             splitter = SubtitleSplitter(
                 max_concurrent=core_config.thread_num,
                 model=core_config.llm_model,
@@ -373,7 +377,7 @@ class SubtitleService:
         else:
             logger.info(f"[任务 {task_id}] 开始分析日语文本")
             self.task_manager.update_task(
-                task_id, progress=55, message="分析日语文本中"
+                task_id, progress=55, message="Analyzing Japanese text"
             )
             analyzer = JapaneseAnalyzer(
                 model=core_config.llm_model,
@@ -512,9 +516,11 @@ class SubtitleService:
                 f"[任务 {task_id}] 开始翻译字幕，目标语言: {core_config.target_language}, "
                 f"翻译服务: {core_config.translator_service}"
             )
-            self.task_manager.update_task(task_id, progress=60, message="翻译字幕中")
+            self.task_manager.update_task(
+                task_id, progress=60, message="Translating subtitles"
+            )
             if not core_config.target_language:
-                error_msg = "目标语言未配置"
+                error_msg = "Target language not configured"
                 logger.error(f"[任务 {task_id}] {error_msg}")
                 raise Exception(error_msg)
 
@@ -573,7 +579,9 @@ class SubtitleService:
 
         try:
             self.task_manager.update_task(
-                task_id, status="running", message="开始处理字幕"
+                task_id,
+                status=TaskStatus.RUNNING,
+                message="Starting subtitle processing",
             )
 
             # 1. 从数据库获取文件路径（优先从关联的转录任务获取）
@@ -620,9 +628,9 @@ class SubtitleService:
             logger.info(f"[任务 {task_id}] 字幕处理完成，输出文件: {json_output_path}")
             self.task_manager.update_task(
                 task_id,
-                status="completed",
+                status=TaskStatus.COMPLETED,
                 progress=100,
-                message="字幕处理完成",
+                message="Subtitle processing completed",
                 output_path=json_output_path,
             )
 
@@ -630,16 +638,16 @@ class SubtitleService:
             error_msg = str(e)
             logger.error(f"[任务 {task_id}] 字幕处理失败: {error_msg}", exc_info=True)
             self.task_manager.update_task(
-                task_id, status="failed", error=error_msg, message="字幕处理失败"
+                task_id,
+                status=TaskStatus.FAILED,
+                error=error_msg,
+                message="Subtitle processing failed",
             )
+            # 重新抛出异常，让 Celery 知道任务失败
+            raise
 
     def _convert_config(self, config) -> CoreSubtitleConfig:
         """转换配置格式"""
-        from app.core.entities import (
-            TranslatorServiceEnum,
-            SubtitleLayoutEnum,
-        )
-
         return CoreSubtitleConfig(
             base_url=config.base_url,
             api_key=config.api_key,
@@ -679,7 +687,6 @@ class SubtitleService:
         目前仅支持 LLM 翻译服务。
         TODO: 后续添加其他翻译服务支持（Bing、Google 等）
         """
-        from app.core.entities import TranslatorServiceEnum
 
         logger.debug(
             f"创建翻译器: service={config.translator_service}, "
@@ -713,5 +720,5 @@ class SubtitleService:
         self.task_manager.update_task(
             task_id,
             progress=60 + int(progress * 0.3),
-            message=f"翻译进度: {progress}%",
+            message=f"Translation progress: {progress}%",
         )

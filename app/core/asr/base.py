@@ -1,13 +1,17 @@
 import os
+import pickle
+import tempfile
 import threading
 import time
 import uuid
 import zlib
 from io import BytesIO
+from pathlib import Path
 from typing import Callable, Optional, Union, cast
 
 from pydub import AudioSegment
 
+from app.core.storage import get_storage
 from app.core.utils.cache import get_asr_cache, is_cache_enabled
 from app.core.utils.logger import setup_logger
 
@@ -68,10 +72,6 @@ class BaseASR:
             )
 
             # 检查是否是 MinIO 对象
-            from app.core.storage import get_storage
-            import tempfile
-            from pathlib import Path
-
             storage = get_storage()
             if storage.file_exists(self.audio_path):
                 # 从 MinIO 下载到临时文件
@@ -121,6 +121,21 @@ class BaseASR:
         Returns:
             ASRData: Recognition results with segments
         """
+        asr_data, _ = self.run_with_language(callback, **kwargs)
+        return asr_data
+
+    def run_with_language(
+        self, callback: Optional[Callable[[int, str], None]] = None, **kwargs
+    ) -> tuple[ASRData, Optional[str]]:
+        """Run ASR with caching support and return detected language.
+
+        Args:
+            callback: Optional progress callback(progress: int, message: str)
+            **kwargs: Additional arguments passed to _run()
+
+        Returns:
+            tuple[ASRData, Optional[str]]: Recognition results with segments and detected language code
+        """
         cache_key = f"{self.__class__.__name__}:{self._get_key()}"
 
         # Try cache first
@@ -128,25 +143,29 @@ class BaseASR:
             cached_result = self._cache.get(cache_key)
             if cached_result is not None:
                 # 反序列化缓存结果
-                import pickle
-
                 cached_result = pickle.loads(cached_result)
                 cached_result = cast(Optional[dict], cached_result)
                 logger.info("找到缓存，直接返回")
                 segments = self._make_segments(cached_result)
-                return ASRData(segments)
+                # 从缓存中提取语言信息
+                language = (
+                    cached_result.get("language")
+                    if isinstance(cached_result, dict)
+                    else None
+                )
+                return ASRData(segments), language
 
         # Run ASR
         resp_data = self._run(callback, **kwargs)
 
         # Cache result
-        import pickle
-
         cached_data = pickle.dumps(resp_data)
         self._cache.setex(cache_key, 86400 * 2, cached_data)
 
         segments = self._make_segments(resp_data)
-        return ASRData(segments)
+        # 从转录结果中提取语言信息
+        language = resp_data.get("language") if isinstance(resp_data, dict) else None
+        return ASRData(segments), language
 
     def _get_key(self) -> str:
         """Get cache key for this ASR request.
@@ -204,8 +223,6 @@ class BaseASR:
         for (key,) in results:
             duration_bytes = self._cache.get(key)
             if duration_bytes is not None:
-                import pickle
-
                 duration = pickle.loads(duration_bytes)
                 if isinstance(duration, (int, float)):
                     durations.append(duration)
@@ -226,8 +243,6 @@ class BaseASR:
             raise RuntimeError(error_msg)
 
         # Record current call (store duration directly as float)
-        import pickle
-
         duration_bytes = pickle.dumps(self.audio_duration)
         expire_time = int(self.RATE_LIMIT_TIME_WINDOW) + 3600
         self._cache.setex(

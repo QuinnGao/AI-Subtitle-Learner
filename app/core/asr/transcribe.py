@@ -4,9 +4,12 @@ from app.core.asr.whisperx import WhisperXASR
 from app.core.entities import TranscribeConfig, TranscribeModelEnum
 from app.config import MODEL_PATH
 
+import asyncio
 
-def transcribe(audio_path: str, config: TranscribeConfig, callback=None) -> ASRData:
-    """Transcribe audio file using specified configuration.
+async def transcribe(
+    audio_path: str, config: TranscribeConfig, callback=None
+) -> tuple[ASRData, str | None]:
+    """Transcribe audio file using specified configuration (async).
 
     Args:
         audio_path: Path to audio file
@@ -14,7 +17,7 @@ def transcribe(audio_path: str, config: TranscribeConfig, callback=None) -> ASRD
         callback: Progress callback function(progress: int, message: str)
 
     Returns:
-        ASRData: Transcription result data
+        tuple[ASRData, str | None]: Transcription result data and detected language code (e.g., "ja", "en", "zh")
     """
 
     def _default_callback(x, y):
@@ -29,14 +32,14 @@ def transcribe(audio_path: str, config: TranscribeConfig, callback=None) -> ASRD
     # Create ASR instance based on model type
     asr = _create_asr_instance(audio_path, config)
 
-    # Run transcription
-    asr_data = asr.run(callback=callback)
+    # Run transcription and get language info (async)
+    asr_data, detected_language = await asr.run_with_language(callback=callback)
 
-    # Optimize subtitle timing if not using word timestamps
+    # Optimize subtitle timing if not using word timestamps (CPU 密集型，在线程池中执行)
     if not config.need_word_time_stamp:
-        asr_data.optimize_timing()
+        await asyncio.to_thread(asr_data.optimize_timing)
 
-    return asr_data
+    return asr_data, detected_language
 
 
 def _create_asr_instance(audio_path: str, config: TranscribeConfig) -> ChunkedASR:

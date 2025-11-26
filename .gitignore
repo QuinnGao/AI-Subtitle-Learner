@@ -36,6 +36,13 @@ ENV/
 # Environment
 .env
 .env.local
+.env.production
+.env.production.local
+.env.development
+.env.development.local
+web/.env.local
+web/.env.production
+web/.env.production.local
 
 # Logs
 logs/

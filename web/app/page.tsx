@@ -1,14 +1,16 @@
 "use client";
 
-import React, { useState, useRef, useEffect, useCallback } from "react";
+import React, { useState, useRef, useCallback } from "react";
 import { AlertCircle, Play, Pause } from "lucide-react";
+import { useTranslation } from "react-i18next";
 import {
-  downloadVideoByUrl,
-  getVideoDownloadTaskStatus,
+  startVideoAnalysis,
   getSubtitleContent,
-  type VideoDownloadResponse,
+  type AnalyzeResponse,
   type SubtitleContentItem,
 } from "@/lib/api";
+import { useTaskStatusStream } from "@/hooks/useTaskStatusStream";
+import { useToast } from "@/components/ui/use-toast";
 import ReactPlayer from "react-player";
 import { SubtitleList } from "@/components/subtitle-list";
 import { AnalysisHeader } from "@/components/analysis-header";
@@ -78,12 +80,104 @@ export default function VideoLearningPage() {
   // State
   const [url, setUrl] = useState("");
   const [appState, setAppState] = useState<AppState>("idle");
-  const [progress, setProgress] = useState(0);
-  const [statusMessage, setStatusMessage] = useState("");
+  const [taskId, setTaskId] = useState<string | null>(null);
   const [errorMsg, setErrorMsg] = useState("");
 
   // Data State
   const [subtitleData, setSubtitleData] = useState<SentenceData[]>([]);
+
+  // i18n
+  const { t } = useTranslation();
+
+  // Toast
+  const { toast } = useToast();
+
+  // 使用 useCallback 包装回调函数，避免 useEffect 重复执行
+  const handleTaskComplete = useCallback(
+    async (data: AnalyzeResponse) => {
+      if (data.status === "completed") {
+        // 获取字幕内容
+        if (data.subtitle_task?.task_id) {
+          try {
+            const subContent = await getSubtitleContent(
+              data.subtitle_task.task_id
+            );
+
+            // 转换后端返回的 JSON 数据
+            if (Array.isArray(subContent.content)) {
+              const parsedData = convertSubtitleData(subContent.content);
+              setSubtitleData(parsedData);
+              setAppState("completed");
+            } else {
+              const errorMessage = "Invalid subtitle data format";
+              toast({
+                variant: "destructive",
+                title: t("toast.dataFormatError"),
+                description: errorMessage,
+              });
+              setAppState("error");
+              setErrorMsg(errorMessage);
+            }
+          } catch (err: any) {
+            const errorMessage = err.message || "Failed to fetch subtitles";
+            toast({
+              variant: "destructive",
+              title: t("toast.fetchSubtitleFailed"),
+              description: errorMessage,
+            });
+            setAppState("error");
+            setErrorMsg(errorMessage);
+          }
+        } else {
+          const errorMessage = "No subtitle generated";
+          toast({
+            variant: "destructive",
+            title: t("toast.subtitleGenerationFailed"),
+            description: errorMessage,
+          });
+          setAppState("error");
+          setErrorMsg(errorMessage);
+        }
+      } else if (data.status === "failed" || data.status === "cancelled") {
+        // 显示失败 toast
+        const errorMessage = data.error || data.message || "Task failed";
+        toast({
+          variant: "destructive",
+          title: t("toast.taskFailed"),
+          description: errorMessage,
+        });
+        setAppState("error");
+        setErrorMsg(errorMessage);
+      }
+    },
+    [toast, t]
+  );
+
+  const handleTaskError = useCallback(
+    (err: Error) => {
+      const errorMessage = err.message || "Connection error";
+      toast({
+        variant: "destructive",
+        title: t("toast.connectionError"),
+        description: errorMessage,
+      });
+      setAppState("error");
+      setErrorMsg(errorMessage);
+    },
+    [toast, t]
+  );
+
+  // 使用 SSE 监听任务状态
+  const { status, isConnected } = useTaskStatusStream({
+    taskId,
+    enabled: appState === "processing" && taskId !== null,
+    onComplete: handleTaskComplete,
+    onError: handleTaskError,
+  });
+
+  // 从 SSE 状态更新 UI
+  const progress = status?.progress || 0;
+  const statusMessage = status?.message || "Processing video...";
 
   // Player State
   const playerRef = useRef<any>(null);
@@ -109,67 +203,23 @@ export default function VideoLearningPage() {
     if (!url) return;
 
     setAppState("processing");
-    setProgress(5);
-    setStatusMessage("Initializing task...");
     setErrorMsg("");
 
     try {
-      // 发起下载任务
-      const initRes = await downloadVideoByUrl(url);
-      const taskId = initRes.task_id;
-
-      // 开始轮询
-      const pollInterval = setInterval(async () => {
-        try {
-          const statusRes = await getVideoDownloadTaskStatus(taskId);
-
-          setProgress(statusRes.progress);
-          setStatusMessage(statusRes.message || "Processing video...");
-
-          if (
-            statusRes.status === "failed" ||
-            statusRes.status === "cancelled"
-          ) {
-            clearInterval(pollInterval);
-            setAppState("error");
-            setErrorMsg(statusRes.error || "Task failed");
-          }
-
-          if (statusRes.status === "completed") {
-            clearInterval(pollInterval);
-            setStatusMessage("Fetching subtitles...");
-
-            // 获取字幕内容
-            // 注意：如果 subtitle_task 也是异步的，这里可能还需要一层轮询 subtitle status
-            // 假设此时 video task completed 意味着字幕也准备好了
-            if (statusRes.subtitle_task?.task_id) {
-              const subContent = await getSubtitleContent(
-                statusRes.subtitle_task.task_id
-              );
-
-              // 转换后端返回的 JSON 数据
-              if (Array.isArray(subContent.content)) {
-                const parsedData = convertSubtitleData(subContent.content);
-                setSubtitleData(parsedData);
-                setAppState("completed");
-              } else {
-                setAppState("error");
-                setErrorMsg("Invalid subtitle data format");
-              }
-            } else {
-              // Fallback handling if no subtitle task
-              setAppState("error");
-              setErrorMsg("No subtitle generated");
-            }
-          }
-        } catch (err) {
-          console.error(err);
-          // Continue polling even if one request fails, unless it's critical
-        }
-      }, 2000); // 每2秒轮询一次
+      // 创建视频分析任务
+      const initRes = await startVideoAnalysis(url);
+      setTaskId(initRes.task_id);
+      // SSE 会自动开始监听任务状态更新
     } catch (err: any) {
+      const errorMessage = err.message || "Failed to start task";
+      toast({
+        variant: "destructive",
+        title: t("toast.startTaskFailed"),
+        description: errorMessage,
+      });
       setAppState("error");
-      setErrorMsg(err.message || "Failed to start task");
+      setErrorMsg(errorMessage);
+      setTaskId(null);
     }
   };
 
@@ -302,7 +352,6 @@ export default function VideoLearningPage() {
           <div className="flex min-h-[60vh] flex-col items-center justify-center space-y-4 text-red-600 animate-in zoom-in">
             <AlertCircle size={48} />
             <h3 className="text-xl font-semibold">Something went wrong</h3>
-            <p className="text-gray-600">{errorMsg}</p>
             <button
               onClick={() => setAppState("idle")}
               className="mt-4 rounded-lg bg-gray-900 px-4 py-2 text-sm text-white transition-colors hover:bg-gray-800"

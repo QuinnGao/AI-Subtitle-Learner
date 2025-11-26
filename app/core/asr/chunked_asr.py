@@ -2,13 +2,18 @@
 
 为任何 BaseASR 实现添加音频分块转录能力，适用于长音频处理。
 使用装饰器模式实现关注点分离。
+基于 FastAPI 的异步 I/O 实现。
 """
 
+import asyncio
 import io
-from concurrent.futures import ThreadPoolExecutor, as_completed
+import tempfile
+from pathlib import Path
 from typing import Callable, List, Optional, Tuple
 
 from pydub import AudioSegment
+
+from app.core.storage import get_storage
 
 from ..utils.logger import setup_logger
 from .asr_data import ASRData
@@ -69,34 +74,12 @@ class ChunkedASR:
         self.chunk_length_ms = chunk_length * MS_PER_SECOND
         self.chunk_overlap_ms = chunk_overlap * MS_PER_SECOND
         self.chunk_concurrency = chunk_concurrency
+        self.file_binary: Optional[bytes] = None
 
-        # 读取完整音频文件（用于分块），支持从 MinIO 读取
-        from app.core.storage import get_storage
-        import tempfile
-        from pathlib import Path
-
-        storage = get_storage()
-        if storage.file_exists(audio_path):
-            # 从 MinIO 下载到临时文件
-            logger.info(f"从 MinIO 下载音频文件用于分块: {audio_path}")
-            with tempfile.NamedTemporaryFile(
-                delete=False, suffix=Path(audio_path).suffix
-            ) as tmp_file:
-                tmp_path = tmp_file.name
-            storage.download_file(audio_path, tmp_path)
-            try:
-                with open(tmp_path, "rb") as f:
-                    self.file_binary = f.read()
-            finally:
-                # 清理临时文件
-                Path(tmp_path).unlink(missing_ok=True)
-        else:
-            # 本地文件
-            with open(audio_path, "rb") as f:
-                self.file_binary = f.read()
-
-    def run(self, callback: Optional[Callable[[int, str], None]] = None) -> ASRData:
-        """执行分块转录
+    async def run(
+        self, callback: Optional[Callable[[int, str], None]] = None
+    ) -> ASRData:
+        """执行分块转录（异步）
 
         Args:
             callback: 进度回调函数(progress: int, message: str)
@@ -104,25 +87,76 @@ class ChunkedASR:
         Returns:
             ASRData: 合并后的转录结果
         """
-        # 1. 分块音频
-        chunks = self._split_audio()
+        asr_data, _ = await self.run_with_language(callback)
+        return asr_data
 
-        # 2. 如果只有一块，直接创建单个 ASR 实例转录
+    async def run_with_language(
+        self, callback: Optional[Callable[[int, str], None]] = None
+    ) -> tuple[ASRData, Optional[str]]:
+        """执行分块转录并返回检测到的语言（异步）
+
+        Args:
+            callback: 进度回调函数(progress: int, message: str)
+
+        Returns:
+            tuple[ASRData, Optional[str]]: 合并后的转录结果和检测到的语言代码
+        """
+        # 1. 异步加载音频文件
+        await self._load_audio_file()
+
+        # 2. 分块音频（CPU 密集型，在线程池中执行）
+        chunks = await asyncio.to_thread(self._split_audio)
+
+        # 3. 如果只有一块，直接创建单个 ASR 实例转录
         if len(chunks) == 1:
             logger.info("音频短于分块长度，直接转录")
             single_asr = self.asr_class(self.audio_path, **self.asr_kwargs)
-            return single_asr.run(callback)
+            # ASR 的 run_with_language 是同步的，需要在线程池中执行
+            return await asyncio.to_thread(single_asr.run_with_language, callback)
 
         logger.info(f"音频分为 {len(chunks)} 块，开始并发转录")
 
-        # 3. 并发转录所有块
-        chunk_results = self._transcribe_chunks(chunks, callback)
+        # 4. 并发转录所有块（异步）
+        chunk_results, detected_language = await self._transcribe_chunks_with_language(
+            chunks, callback
+        )
 
-        # 4. 合并结果
-        merged_result = self._merge_results(chunk_results, chunks)
+        # 5. 合并结果（CPU 密集型，在线程池中执行）
+        merged_result = await asyncio.to_thread(
+            self._merge_results, chunk_results, chunks
+        )
 
         logger.info(f"分块转录完成，共 {len(merged_result.segments)} 个片段")
-        return merged_result
+        return merged_result, detected_language
+
+    async def _load_audio_file(self) -> None:
+        """异步加载音频文件（支持从 MinIO 读取）"""
+        if self.file_binary is not None:
+            return  # 已经加载过
+
+        storage = get_storage()
+        if storage.file_exists(self.audio_path):
+            # 从 MinIO 下载到临时文件
+            logger.info(f"从 MinIO 下载音频文件用于分块: {self.audio_path}")
+            with tempfile.NamedTemporaryFile(
+                delete=False, suffix=Path(self.audio_path).suffix
+            ) as tmp_file:
+                tmp_path = tmp_file.name
+            # 下载文件（同步操作，在线程池中执行）
+            await asyncio.to_thread(storage.download_file, self.audio_path, tmp_path)
+            try:
+                # 读取文件（同步操作，在线程池中执行）
+                self.file_binary = await asyncio.to_thread(
+                    lambda: Path(tmp_path).read_bytes()
+                )
+            finally:
+                # 清理临时文件
+                Path(tmp_path).unlink(missing_ok=True)
+        else:
+            # 本地文件（同步操作，在线程池中执行）
+            self.file_binary = await asyncio.to_thread(
+                lambda: Path(self.audio_path).read_bytes()
+            )
 
     def _split_audio(self) -> List[Tuple[bytes, int]]:
         """使用 pydub 将音频切割为重叠的块
@@ -171,27 +205,27 @@ class ChunkedASR:
         # logger.info(f"音频切割完成，共 {len(chunks)} 个块")
         return chunks
 
-    def _transcribe_chunks(
+    async def _transcribe_chunks_with_language(
         self,
         chunks: List[Tuple[bytes, int]],
         callback: Optional[Callable[[int, str], None]],
-    ) -> List[ASRData]:
-        """并发转录多个音频块
+    ) -> tuple[List[ASRData], Optional[str]]:
+        """并发转录多个音频块并返回检测到的语言（异步）
 
         Args:
             chunks: 音频块列表 [(chunk_bytes, offset_ms), ...]
             callback: 进度回调
 
         Returns:
-            List[ASRData]: 每个块的转录结果
+            tuple[List[ASRData], Optional[str]]: 每个块的转录结果和检测到的语言代码
         """
-        results: List[Optional[ASRData]] = [None] * len(chunks)
         total_chunks = len(chunks)
+        detected_language = None
 
-        def transcribe_single_chunk(
+        async def transcribe_single_chunk(
             idx: int, chunk_bytes: bytes, offset_ms: int
-        ) -> Tuple[int, ASRData]:
-            """转录单个音频块 - 为每个块创建独立的 ASR 实例"""
+        ) -> Tuple[int, ASRData, Optional[str]]:
+            """转录单个音频块 - 为每个块创建独立的 ASR 实例（异步）"""
             logger.info(
                 f"开始转录 chunk {idx + 1}/{total_chunks} (offset={offset_ms}ms)"
             )
@@ -209,28 +243,43 @@ class ChunkedASR:
             # 使用 chunk_bytes 作为音频输入
             chunk_asr = self.asr_class(chunk_bytes, **self.asr_kwargs)
 
-            # 调用 ASR 的 run() 方法转录
-            asr_data = chunk_asr.run(chunk_callback)
+            # 调用 ASR 的 run_with_language() 方法转录（同步操作，在线程池中执行）
+            asr_data, language = await asyncio.to_thread(
+                chunk_asr.run_with_language, chunk_callback
+            )
 
             logger.info(
                 f"Chunk {idx + 1}/{total_chunks} 转录完成，"
-                f"获得 {len(asr_data.segments)} 个片段"
+                f"获得 {len(asr_data.segments)} 个片段，语言: {language}"
             )
-            return idx, asr_data
+            return idx, asr_data, language
 
-        # 使用 ThreadPoolExecutor 并发转录
-        with ThreadPoolExecutor(max_workers=self.chunk_concurrency) as executor:
-            futures = {
-                executor.submit(transcribe_single_chunk, i, chunk_bytes, offset): i
-                for i, (chunk_bytes, offset) in enumerate(chunks)
-            }
+        # 限制并发数量
+        semaphore = asyncio.Semaphore(self.chunk_concurrency)
 
-            for future in as_completed(futures):
-                idx, asr_data = future.result()
-                results[idx] = asr_data
+        async def bounded_transcribe(idx, chunk_bytes, offset):
+            async with semaphore:
+                return await transcribe_single_chunk(idx, chunk_bytes, offset)
 
-        logger.info(f"所有 {total_chunks} 个块转录完成")
-        return [r for r in results if r is not None]  # 过滤 None
+        bounded_tasks = [
+            bounded_transcribe(i, chunk_bytes, offset)
+            for i, (chunk_bytes, offset) in enumerate(chunks)
+        ]
+
+        results_list = await asyncio.gather(*bounded_tasks)
+
+        # 整理结果
+        results: List[Optional[ASRData]] = [None] * len(chunks)
+        for idx, asr_data, language in results_list:
+            results[idx] = asr_data
+        # 从第一个块获取语言信息（所有块应该检测到相同的语言）
+        if detected_language is None and language:
+            detected_language = language
+
+        logger.info(
+            f"所有 {total_chunks} 个块转录完成，检测到的语言: {detected_language}"
+        )
+        return [r for r in results if r is not None], detected_language  # 过滤 None
 
     def _merge_results(
         self, chunk_results: List[ASRData], chunks: List[Tuple[bytes, int]]

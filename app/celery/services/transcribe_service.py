@@ -3,6 +3,7 @@
 """
 
 import asyncio
+import tempfile
 from pathlib import Path
 
 from app.schemas.transcribe import TranscribeRequest
@@ -16,7 +17,6 @@ from app.core.entities import (
     TranscribeOutputFormatEnum,
 )
 from app.core.storage import get_storage
-import tempfile
 
 task_manager = get_task_manager()
 logger = setup_logger("transcribe_service")
@@ -37,7 +37,7 @@ class TranscribeService:
             self._update_task_running(task_id)
 
             # 2. 从数据库获取文件路径（优先从关联的视频任务获取）
-            file_path = self._get_file_path_from_db(task_id, None)
+            file_path = self._get_file_path_from_db(task_id)
 
             # 3. 转换配置
             core_config = self._prepare_config(task_id, request.config)
@@ -60,23 +60,22 @@ class TranscribeService:
 
         except Exception as e:
             self._handle_error(task_id, e)
+            # 重新抛出异常，让 Celery 知道任务失败
+            raise
 
     def _update_task_running(self, task_id: str) -> None:
         """更新任务状态为 running"""
         logger.info(f"[任务 {task_id}] 更新任务状态为 running")
         self.task_manager.update_task(
-            task_id, status=TaskStatus.RUNNING, message="开始转录"
+            task_id, status=TaskStatus.RUNNING, message="Starting transcription"
         )
 
-    def _get_file_path_from_db(
-        self, task_id: str, fallback_file_path: str | None
-    ) -> Path:
+    def _get_file_path_from_db(self, task_id: str) -> Path:
         """从数据库获取文件路径
 
-        优先从关联的视频任务的 output_path 获取文件路径
-        如果没有关联的视频任务，则使用 fallback_file_path
+        从关联的视频任务的 output_path 获取文件路径
         """
-        # 1. 尝试从关联的视频任务获取文件路径
+        # 从关联的视频任务获取文件路径
         video_task_id = self.task_manager.get_task_relation(task_id, "video_task_id")
         if video_task_id:
             video_task = self.task_manager.get_task(video_task_id)
@@ -91,23 +90,15 @@ class TranscribeService:
                 if self._validate_file_path(file_path_obj):
                     return file_path_obj
                 else:
-                    logger.warning(
-                        f"[任务 {task_id}] 关联视频任务的文件路径不存在，尝试使用备用路径"
+                    error_msg = (
+                        f"Related video task file path does not exist: {file_path_obj}"
                     )
+                    logger.error(f"[任务 {task_id}] {error_msg}")
+                    raise ValueError(error_msg)
 
-        # 2. 如果没有关联的视频任务或文件不存在，使用 fallback_file_path
-        if fallback_file_path:
-            logger.info(f"[任务 {task_id}] 使用备用文件路径: {fallback_file_path}")
-            file_path_obj = Path(fallback_file_path)
-            if not self._validate_file_path(file_path_obj):
-                error_msg = f"文件不存在: {file_path_obj}"
-                logger.error(f"[任务 {task_id}] {error_msg}")
-                raise ValueError(error_msg)
-            return file_path_obj
-
-        # 3. 如果都没有，抛出错误
+        # 如果没有关联的视频任务或文件不存在，抛出错误
         error_msg = (
-            f"无法获取文件路径: task_id={task_id}, 没有关联的视频任务且没有提供文件路径"
+            f"无法获取文件路径: task_id={task_id}, 没有关联的视频任务或文件不存在"
         )
         logger.error(f"[任务 {task_id}] {error_msg}")
         raise ValueError(error_msg)
@@ -177,16 +168,38 @@ class TranscribeService:
             f"language={core_config.transcribe_language}"
         )
 
-        self.task_manager.update_task(task_id, progress=10, message="语音转录中")
+        self.task_manager.update_task(
+            task_id, progress=10, message="Transcribing audio"
+        )
 
-        asr_data = await asyncio.to_thread(
-            transcribe,
+        asr_data, detected_language = await transcribe(
             audio_path,
             core_config,
             lambda value, msg: self._progress_callback(task_id, value, msg),
         )
 
-        logger.info(f"[任务 {task_id}] 转录完成，共 {len(asr_data.segments)} 条字幕")
+        logger.info(
+            f"[任务 {task_id}] 转录完成，共 {len(asr_data.segments)} 条字幕，"
+            f"检测到的语言: {detected_language}"
+        )
+
+        # 验证检测到的语言是否为日语
+        if detected_language and detected_language != "ja":
+            language_names_map = {
+                "ja": "日语",
+                "en": "英语",
+                "zh": "中文",
+            }
+            detected_lang_name = language_names_map.get(
+                detected_language, detected_language
+            )
+            error_msg = (
+                f"Detected video language is {detected_lang_name} ({detected_language}). "
+                f"Currently only Japanese videos are supported. Please use a Japanese video for analysis."
+            )
+            logger.error(f"[任务 {task_id}] {error_msg}")
+            raise ValueError(error_msg)
+
         return asr_data
 
     async def _save_subtitle_file(
@@ -217,7 +230,7 @@ class TranscribeService:
             task_id,
             status=TaskStatus.COMPLETED,
             progress=100,
-            message="转录完成",
+            message="Transcription completed",
             output_path=output_path,
         )
 
@@ -227,7 +240,10 @@ class TranscribeService:
         logger.error(f"[任务 {task_id}] 转录任务失败: {error_msg}", exc_info=True)
 
         self.task_manager.update_task(
-            task_id, status=TaskStatus.FAILED, error=error_msg, message="转录失败"
+            task_id,
+            status=TaskStatus.FAILED,
+            error=error_msg,
+            message="Transcription failed",
         )
         logger.error(f"[任务 {task_id}] 任务状态已更新为 failed")
 

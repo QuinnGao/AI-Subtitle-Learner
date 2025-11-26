@@ -37,8 +37,6 @@ def subtitle_task(self, task_id: str, request_dict: dict):
         logger.info(f"[Celery Task] 开始执行字幕处理任务: task_id={task_id}")
 
         # 从字典重建 SubtitleRequest 对象
-        from app.schemas.subtitle import SubtitleRequest, SubtitleConfig
-
         request = SubtitleRequest(**request_dict)
 
         # 在事件循环中运行异步函数
@@ -76,11 +74,17 @@ def subtitle_task(self, task_id: str, request_dict: dict):
             exc_info=True,
         )
         # 更新任务状态为失败
-        task_manager.update_task(
-            task_id,
-            error=str(e),
-            message="字幕处理任务失败",
-        )
+        try:
+            task_manager.update_task(
+                task_id,
+                status=TaskStatus.FAILED,
+                error=str(e),
+                message="字幕处理任务失败",
+            )
+        except Exception as update_error:
+            logger.error(
+                f"[Celery Task] 更新任务状态失败: task_id={task_id}, error={str(update_error)}",
+                exc_info=True,
+            )
         # 重新抛出异常以触发重试
         raise
-

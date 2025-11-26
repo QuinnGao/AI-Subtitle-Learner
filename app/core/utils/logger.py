@@ -14,7 +14,7 @@ from ...config import LOG_LEVEL, LOG_PATH
 
 def _should_disable_enqueue() -> bool:
     """检测是否应该禁用 enqueue（避免 multiprocessing 问题）
-    
+
     在以下情况下禁用 enqueue：
     1. 环境变量 LOGURU_DISABLE_ENQUEUE=true
     2. 检测到 VSCode debug 环境（VSCODE_PID 存在）
@@ -23,25 +23,26 @@ def _should_disable_enqueue() -> bool:
     # 检查环境变量
     if os.getenv("LOGURU_DISABLE_ENQUEUE", "").lower() == "true":
         return True
-    
+
     # 检查 VSCode debug 环境
     if os.getenv("VSCODE_PID") is not None:
         return True
-    
+
     # 检查是否在 multiprocessing 子进程中
     try:
         import multiprocessing
+
         if multiprocessing.current_process().name != "MainProcess":
             return True
     except (ImportError, AttributeError):
         pass
-    
+
     return False
 
 
 class AutoFlushStream:
     """自动刷新的流包装器，确保日志立即输出
-    
+
     这个类包装了 sys.stderr，在每次写入时自动刷新，
     避免在代码中频繁调用 sys.stderr.flush()
     """
@@ -61,7 +62,7 @@ class AutoFlushStream:
 
     def __getattr__(self, name: str):
         """代理其他属性和方法到原始流
-        
+
         这确保 loguru 可以访问流的所有属性（如 isatty, fileno 等）
         """
         return getattr(self.stream, name)
@@ -86,9 +87,6 @@ _logger_configured = False
 def setup_logger(
     name: str,
     level: Optional[str] = None,
-    info_fmt: Optional[str] = None,  # 保留参数以兼容旧代码
-    default_fmt: Optional[str] = None,  # 保留参数以兼容旧代码
-    datefmt: Optional[str] = None,  # 保留参数以兼容旧代码
     log_file: Optional[str] = None,
     console_output: bool = True,
 ):
@@ -98,9 +96,6 @@ def setup_logger(
     参数：
     - name: 日志记录器的名称（用于标识日志来源）
     - level: 日志级别 (DEBUG, INFO, WARNING, ERROR, CRITICAL)
-    - info_fmt: 保留参数，loguru 使用统一格式
-    - default_fmt: 保留参数，loguru 使用统一格式
-    - datefmt: 保留参数，loguru 使用统一格式
     - log_file: 日志文件路径（默认使用 LOG_PATH/app.log）
     - console_output: 是否输出到控制台（默认 True）
 
@@ -133,8 +128,9 @@ def setup_logger(
                     return f"<green>{time_str}</green> | <level>{level_name}</level> | {message}\n"
                 else:
                     return f"<green>{time_str}</green> | {message}\n"
-            except Exception:
-                return "{time} | {level} | {message}\n"
+            except Exception as e:
+                # 异常时返回简单的格式，使用 loguru 的标准格式语法
+                return "<green>{time:YYYY-MM-DD HH:mm:ss}</green> | <level>{level}</level> | {message}\n"
 
         # 文件输出格式（简化，只显示必要信息）
         def format_file(record):
@@ -144,8 +140,9 @@ def setup_logger(
                 message = record.get("message", "")
                 # 只显示时间、级别和消息
                 return f"{time_str} | {level_name} | {message}\n"
-            except Exception:
-                return "{time} | {level} | {message}\n"
+            except Exception as e:
+                # 异常时返回简单的格式，使用 loguru 的标准格式语法
+                return "{time:YYYY-MM-DD HH:mm:ss} | {level} | {message}\n"
 
         # 检测是否应该禁用 enqueue（避免在 VSCode debug 等环境中的 multiprocessing 问题）
         use_enqueue = not _should_disable_enqueue()

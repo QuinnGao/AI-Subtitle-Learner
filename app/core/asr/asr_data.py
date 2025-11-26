@@ -572,9 +572,6 @@ class ASRData:
         file_path_obj = Path(file_path)
 
         # 检查是否是 MinIO 对象
-        from app.core.storage import get_storage
-        import tempfile
-
         storage = get_storage()
         if storage.file_exists(file_path):
             # 从 MinIO 下载到临时文件

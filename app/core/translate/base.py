@@ -1,5 +1,7 @@
 """翻译器基类"""
 
+import atexit
+import pickle
 from abc import ABC, abstractmethod
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from typing import Callable, List, Optional
@@ -36,8 +38,6 @@ class BaseTranslator(ABC):
     def _init_thread_pool(self):
         """初始化线程池"""
         self.executor = ThreadPoolExecutor(max_workers=self.thread_num)
-        import atexit
-
         atexit.register(self.stop)
 
     def translate_subtitle(self, subtitle_data: ASRData) -> ASRData:
@@ -114,8 +114,6 @@ class BaseTranslator(ABC):
             cache_key = self._get_cache_key(chunk)
             cached_result_bytes = self._cache.get(cache_key)
             if cached_result_bytes is not None:
-                import pickle
-
                 cached_result = pickle.loads(cached_result_bytes)
                 return cached_result
 
@@ -123,8 +121,6 @@ class BaseTranslator(ABC):
 
             if self.update_callback:
                 self.update_callback(result)
-
-            import pickle
 
             result_bytes = pickle.dumps(result)
             self._cache.setex(cache_key, 86400 * 7, result_bytes)

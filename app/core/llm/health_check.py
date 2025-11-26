@@ -3,6 +3,7 @@ LLM 健康检查服务
 定时监控 LLM 配置的健康状态
 """
 
+import os
 import threading
 import time
 from dataclasses import dataclass
@@ -133,8 +134,6 @@ class LLMHealthChecker:
 
         # 如果健康，设置环境变量（全局统一）
         if is_healthy:
-            import os
-
             os.environ["OPENAI_BASE_URL"] = base_url
             os.environ["OPENAI_API_KEY"] = api_key
             logger.debug(
@@ -202,8 +201,6 @@ class LLMHealthChecker:
                 from app.config import LLM_API_BASE, LLM_API_KEY, LLM_MODEL
             except ImportError:
                 # 如果导入失败，回退到环境变量
-                import os
-
                 if not base_url:
                     base_url = os.getenv("OPENAI_BASE_URL", "").strip()
                 if not api_key:

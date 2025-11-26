@@ -2,8 +2,6 @@
 Pydantic 数据模型
 """
 from app.schemas.common import (
-    AudioStreamInfo,
-    VideoInfo,
     TaskStatus,
     TaskResponse,
 )
@@ -18,8 +16,6 @@ from app.schemas.subtitle import (
 )
 
 __all__ = [
-    "AudioStreamInfo",
-    "VideoInfo",
     "TaskStatus",
     "TaskResponse",
     "TranscribeConfig",

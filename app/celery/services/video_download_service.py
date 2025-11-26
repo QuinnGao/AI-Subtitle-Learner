@@ -13,9 +13,7 @@ import yt_dlp
 from app.config import settings
 from app.services.task_manager import get_task_manager
 from app.celery.tasks.transcribe_tasks import transcribe_task
-from app.celery.tasks.subtitle_tasks import subtitle_task
 from app.schemas.transcribe import TranscribeRequest, TranscribeConfig, TranscribeModel
-from app.schemas.subtitle import SubtitleRequest, SubtitleConfig
 from app.core.constants import TaskStatus
 from app.core.utils.logger import setup_logger
 from app.core.storage import get_storage
@@ -147,7 +145,7 @@ class VideoDownloadService:
 
             try:
                 progress = int(float(clean_percent))
-                message = f"下载进度: {clean_percent}%  速度: {clean_speed}"
+                message = f"Download progress: {clean_percent}%  Speed: {clean_speed}"
                 self.task_manager.update_task(
                     task_id, progress=progress, message=message
                 )
@@ -167,7 +165,7 @@ class VideoDownloadService:
             self.task_manager.update_task(
                 task_id,
                 status=TaskStatus.RUNNING,
-                message="开始下载音频",
+                message="Starting audio download",
             )
 
             # 使用配置的工作目录或提供的目录
@@ -239,7 +237,7 @@ class VideoDownloadService:
                 task_id,
                 status=TaskStatus.RUNNING,
                 progress=50,
-                message="音频下载完成，等待转录...",
+                message="Audio download completed, waiting for transcription...",
                 output_path=minio_path,  # 存储 MinIO 路径
             )
 
@@ -276,10 +274,10 @@ class VideoDownloadService:
                         f"video_task_id={task_id}, transcribe_task_id={transcribe_task_id}"
                     )
 
-                    # 更新音频下载任务消息，包含转录任务ID
+                    # 更新音频下载任务消息
                     self.task_manager.update_task(
                         task_id,
-                        message=f"音频下载完成，等待转录...|{transcribe_task_id}||{video_file_path or ''}",
+                        message="Audio download completed, waiting for transcription...",
                     )
 
                     # 创建转录请求，使用 WhisperX（默认使用 CPU）
@@ -316,8 +314,8 @@ class VideoDownloadService:
                     self.task_manager.update_task(
                         task_id,
                         status=TaskStatus.FAILED,
-                        error=f"创建转录任务失败: {str(e)}",
-                        message="音频下载完成，但创建转录任务失败",
+                        error=f"Failed to create transcription task: {str(e)}",
+                        message="Audio download completed, but failed to create transcription task",
                     )
             else:
                 # 音频文件不存在，标记为失败
@@ -325,8 +323,8 @@ class VideoDownloadService:
                     task_id,
                     status=TaskStatus.FAILED,
                     progress=0,
-                    message="音频下载失败：文件不存在",
-                    error="音频文件下载失败",
+                    message="Audio download failed: file does not exist",
+                    error="Audio file download failed",
                 )
                 logger.error(f"[任务 {task_id}] 音频文件不存在: {video_file_path}")
                 return
@@ -338,7 +336,7 @@ class VideoDownloadService:
                 task_id,
                 status=TaskStatus.FAILED,
                 error=error_msg,
-                message="音频下载失败",
+                message="Audio download failed",
             )
 
     def _download_video_sync(
