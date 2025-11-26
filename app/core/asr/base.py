@@ -121,6 +121,21 @@ class BaseASR:
         Returns:
             ASRData: Recognition results with segments
         """
+        asr_data, _ = self.run_with_language(callback, **kwargs)
+        return asr_data
+
+    def run_with_language(
+        self, callback: Optional[Callable[[int, str], None]] = None, **kwargs
+    ) -> tuple[ASRData, Optional[str]]:
+        """Run ASR with caching support and return detected language.
+
+        Args:
+            callback: Optional progress callback(progress: int, message: str)
+            **kwargs: Additional arguments passed to _run()
+
+        Returns:
+            tuple[ASRData, Optional[str]]: Recognition results with segments and detected language code
+        """
         cache_key = f"{self.__class__.__name__}:{self._get_key()}"
 
         # Try cache first
@@ -132,7 +147,13 @@ class BaseASR:
                 cached_result = cast(Optional[dict], cached_result)
                 logger.info("找到缓存，直接返回")
                 segments = self._make_segments(cached_result)
-                return ASRData(segments)
+                # 从缓存中提取语言信息
+                language = (
+                    cached_result.get("language")
+                    if isinstance(cached_result, dict)
+                    else None
+                )
+                return ASRData(segments), language
 
         # Run ASR
         resp_data = self._run(callback, **kwargs)
@@ -142,7 +163,9 @@ class BaseASR:
         self._cache.setex(cache_key, 86400 * 2, cached_data)
 
         segments = self._make_segments(resp_data)
-        return ASRData(segments)
+        # 从转录结果中提取语言信息
+        language = resp_data.get("language") if isinstance(resp_data, dict) else None
+        return ASRData(segments), language
 
     def _get_key(self) -> str:
         """Get cache key for this ASR request.

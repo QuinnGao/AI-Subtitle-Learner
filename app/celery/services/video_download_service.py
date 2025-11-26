@@ -13,9 +13,7 @@ import yt_dlp
 from app.config import settings
 from app.services.task_manager import get_task_manager
 from app.celery.tasks.transcribe_tasks import transcribe_task
-from app.celery.tasks.subtitle_tasks import subtitle_task
 from app.schemas.transcribe import TranscribeRequest, TranscribeConfig, TranscribeModel
-from app.schemas.subtitle import SubtitleRequest, SubtitleConfig
 from app.core.constants import TaskStatus
 from app.core.utils.logger import setup_logger
 from app.core.storage import get_storage
@@ -276,10 +274,10 @@ class VideoDownloadService:
                         f"video_task_id={task_id}, transcribe_task_id={transcribe_task_id}"
                     )
 
-                    # 更新音频下载任务消息，包含转录任务ID
+                    # 更新音频下载任务消息
                     self.task_manager.update_task(
                         task_id,
-                        message=f"音频下载完成，等待转录...|{transcribe_task_id}||{video_file_path or ''}",
+                        message="音频下载完成，等待转录...",
                     )
 
                     # 创建转录请求，使用 WhisperX（默认使用 CPU）

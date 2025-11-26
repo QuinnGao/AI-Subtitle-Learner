@@ -83,38 +83,19 @@ async def _get_task_status_data(task_id: str) -> AnalyzeResponse:
     if not task:
         raise HTTPException(status_code=404, detail="任务不存在")
 
-    # 首先从 TaskManager 获取关联的转录任务ID和字幕任务ID
+    # 从 TaskManager 获取关联的转录任务ID和字幕任务ID（从数据库字段获取）
     transcribe_task_id = task_manager.get_task_relation(task_id, "transcribe_task_id")
     subtitle_task_id = task_manager.get_task_relation(task_id, "subtitle_task_id")
 
-    # 解析 message 中的信息（兼容旧格式）
+    # 解析 message 中的其他信息（兼容旧格式，但不包含任务ID）
     video_path = task.output_path
     subtitle_path = None
     thumbnail_path = None
     subtitle_task = None
 
-    if task.message and "|" in task.message:
-        parts = task.message.split("|")
-        base_message = parts[0]
-
-        if len(parts) >= 6:
-            if not transcribe_task_id:
-                transcribe_task_id = parts[1] if parts[1] else None
-            if not subtitle_task_id:
-                subtitle_task_id = parts[2] if parts[2] else None
-            video_path = parts[3] if parts[3] else task.output_path
-            subtitle_path = parts[4] if parts[4] else None
-            thumbnail_path = parts[5] if parts[5] else None
-        elif len(parts) >= 4:
-            video_path = parts[1] if parts[1] else task.output_path
-            subtitle_path = parts[2] if parts[2] else None
-            thumbnail_path = parts[3] if parts[3] else None
-
     # 统一计算整个 analyze 任务的进度
     unified_progress = task.progress
-    unified_message = (
-        base_message if task.message and "|" in task.message else task.message
-    )
+    unified_message = task.message
 
     # 获取转录任务状态
     transcribe_task_obj = None
@@ -122,6 +103,7 @@ async def _get_task_status_data(task_id: str) -> AnalyzeResponse:
         transcribe_task_obj = task_manager.get_task(transcribe_task_id)
 
     # 获取字幕任务状态
+    subtitle_task_obj = None
     if subtitle_task_id:
         subtitle_task_obj = task_manager.get_task(subtitle_task_id)
         if subtitle_task_obj:
@@ -139,65 +121,84 @@ async def _get_task_status_data(task_id: str) -> AnalyzeResponse:
                 subtitle_path = subtitle_task_obj.output_path
 
     # 根据子任务状态统一计算进度
-    # 视频下载阶段：0-30%
-    # 转录阶段：30-70%
-    # 字幕处理阶段：70-100%
+    # 视频下载阶段：0-30%，转录阶段：30-70%，字幕处理阶段：70-100%
 
-    # 如果主任务已完成或失败，直接使用主任务状态
-    if task.status == TaskStatus.COMPLETED:
+    # 检查失败状态（优先级最高）
+    failed_task = next(
+        (
+            (t, base_progress, error_msg)
+            for t, base_progress, error_msg in [
+                (task, 0, "任务失败"),
+                (subtitle_task_obj, 70, "字幕处理失败"),
+                (transcribe_task_obj, 30, "转录失败"),
+            ]
+            if t and t.status == TaskStatus.FAILED
+        ),
+        None,
+    )
+
+    if failed_task:
+        task_obj, base_progress, default_msg = failed_task
+        unified_progress = task_obj.progress or base_progress
+        unified_message = (
+            task_obj.error or task_obj.message or unified_message or default_msg
+        )
+        final_status = TaskStatus.FAILED
+        final_error = task_obj.error or task.error
+    # 检查完成状态
+    elif task.status == TaskStatus.COMPLETED or (
+        subtitle_task_obj and subtitle_task_obj.status == TaskStatus.COMPLETED
+    ):
         unified_progress = 100
         unified_message = unified_message or "分析完成"
-    elif task.status == TaskStatus.FAILED:
-        unified_progress = task.progress or 0
-        unified_message = unified_message or task.error or "任务失败"
-    elif subtitle_task_obj and subtitle_task_obj.status == TaskStatus.COMPLETED:
-        # 字幕任务完成，整个任务应该完成（但可能主任务状态还未更新）
-        unified_progress = 100
-        unified_message = unified_message or "分析完成"
+        final_status = TaskStatus.COMPLETED
+    # 检查运行中状态
     elif subtitle_task_obj and subtitle_task_obj.status == TaskStatus.RUNNING:
         # 字幕处理中：70% + 字幕任务进度的30%
         subtitle_progress = subtitle_task_obj.progress or 0
-        unified_progress = min(
-            70 + int(subtitle_progress * 0.3), 99
-        )  # 最多99%，完成时由状态控制
+        unified_progress = min(70 + int(subtitle_progress * 0.3), 99)
         unified_message = subtitle_task_obj.message or unified_message or "字幕处理中"
+        final_status = task.status
     elif transcribe_task_obj and transcribe_task_obj.status == TaskStatus.COMPLETED:
-        # 转录完成，等待字幕处理
-        if subtitle_task_id:
-            unified_progress = 70
-            unified_message = unified_message or "转录完成，等待字幕处理"
-        else:
-            # 如果没有字幕任务，转录完成就是全部完成
-            unified_progress = 100
-            unified_message = unified_message or "转录完成"
+        # 转录完成
+        unified_progress = 70 if subtitle_task_id else 100
+        unified_message = unified_message or (
+            "转录完成，等待字幕处理" if subtitle_task_id else "转录完成"
+        )
+        final_status = task.status
     elif transcribe_task_obj and transcribe_task_obj.status == TaskStatus.RUNNING:
         # 转录中：30% + 转录任务进度的40%
         transcribe_progress = transcribe_task_obj.progress or 0
-        unified_progress = min(30 + int(transcribe_progress * 0.4), 69)  # 最多69%
+        unified_progress = min(30 + int(transcribe_progress * 0.4), 69)
         unified_message = transcribe_task_obj.message or unified_message or "转录中"
+        final_status = task.status
     elif task.status == TaskStatus.RUNNING:
         # 视频下载中：0-30%
-        # 将视频下载任务的进度（0-100%）映射到 0-30%
         video_progress = task.progress or 0
-        unified_progress = min(int(video_progress * 0.3), 29)  # 最多29%
+        unified_progress = min(int(video_progress * 0.3), 29)
         unified_message = unified_message or "下载音频中"
+        final_status = task.status
     elif task.status == TaskStatus.PENDING:
-        # 任务待处理
         unified_progress = 0
         unified_message = unified_message or "任务已创建，等待处理"
+        final_status = task.status
     else:
-        # 其他状态，使用原进度
+        # 其他状态
         unified_progress = task.progress or 0
+        final_status = task.status
+
+    # 统一设置错误信息（失败状态已在上面处理）
+    final_error = task.error
 
     return AnalyzeResponse(
         task_id=task.task_id,
-        status=task.status,
+        status=final_status,
         queued_at=task.queued_at,
         started_at=task.started_at,
         completed_at=task.completed_at,
         progress=unified_progress,  # 使用统一计算的进度
         message=unified_message,
-        error=task.error,
+        error=final_error,
         output_path=task.output_path,
         video_path=video_path,
         subtitle_path=subtitle_path,

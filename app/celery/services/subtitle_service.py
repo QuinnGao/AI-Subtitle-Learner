@@ -6,11 +6,11 @@ import json
 import tempfile
 from pathlib import Path
 
-from langdetect import LangDetectException, detect
 
 from app.schemas.subtitle import SubtitleRequest
 from app.services.task_manager import get_task_manager
 from app.core.asr.asr_data import ASRData
+from app.core.constants import TaskStatus
 from app.core.entities import (
     SubtitleConfig as CoreSubtitleConfig,
     SubtitleLayoutEnum,
@@ -117,15 +117,17 @@ class SubtitleService:
         Returns:
             缓存的数据，如果文件不存在则返回 None
         """
-        
+
         # 生成 MinIO 对象名称（使用 cache/ 前缀）
         object_name = f"cache/{str(cache_path).replace('\\', '/').lstrip('/')}"
-        
+
         storage = get_storage()
         if storage.file_exists(object_name):
             try:
                 # 从 MinIO 下载到临时文件
-                with tempfile.NamedTemporaryFile(delete=False, suffix=".json") as tmp_file:
+                with tempfile.NamedTemporaryFile(
+                    delete=False, suffix=".json"
+                ) as tmp_file:
                     tmp_path = tmp_file.name
                 storage.download_file(object_name, tmp_path)
                 try:
@@ -136,7 +138,7 @@ class SubtitleService:
             except Exception as e:
                 logger.warning(f"从 MinIO 加载缓存失败: {object_name}, 错误: {e}")
                 return None
-        
+
         # 兼容：检查本地文件（向后兼容）
         if cache_path.exists():
             try:
@@ -145,7 +147,7 @@ class SubtitleService:
             except Exception as e:
                 logger.warning(f"加载本地缓存失败: {cache_path}, 错误: {e}")
                 return None
-        
+
         return None
 
     def _save_to_cache(self, cache_path: Path, data):
@@ -155,16 +157,18 @@ class SubtitleService:
             cache_path: 缓存文件路径（本地路径格式，用于生成 MinIO 对象名称）
             data: 要保存的数据（必须是可 JSON 序列化的）
         """
-        
+
         # 生成 MinIO 对象名称（使用 cache/ 前缀）
         object_name = f"cache/{str(cache_path).replace('\\', '/').lstrip('/')}"
-        
+
         try:
             # 保存到临时文件，然后上传到 MinIO
-            with tempfile.NamedTemporaryFile(mode="w", delete=False, suffix=".json", encoding="utf-8") as tmp_file:
+            with tempfile.NamedTemporaryFile(
+                mode="w", delete=False, suffix=".json", encoding="utf-8"
+            ) as tmp_file:
                 tmp_path = tmp_file.name
                 json.dump(data, tmp_file, ensure_ascii=False, indent=2)
-            
+
             storage = get_storage()
             storage.upload_file(tmp_path, object_name=object_name)
             logger.debug(f"缓存已保存到 MinIO: {object_name}")
@@ -179,7 +183,7 @@ class SubtitleService:
                 logger.warning(f"保存本地缓存也失败: {cache_path}, 错误: {e2}")
         finally:
             # 清理临时文件
-            if 'tmp_path' in locals():
+            if "tmp_path" in locals():
                 Path(tmp_path).unlink(missing_ok=True)
 
     def _get_subtitle_path_from_db(self, task_id: str) -> Path:
@@ -231,59 +235,6 @@ class SubtitleService:
         error_msg = f"字幕文件不存在: {subtitle_path}"
         logger.error(f"[任务 {task_id}] {error_msg}")
         raise ValueError(error_msg)
-
-    def _validate_language(self, task_id: str, asr_data: ASRData) -> None:
-        """验证视频语言是否为日语
-        
-        Args:
-            task_id: 任务ID
-            asr_data: 字幕数据
-            
-        Raises:
-            ValueError: 如果检测到的语言不是日语
-        """
-        logger.info(f"[任务 {task_id}] 开始检测视频语言")
-        
-        if not asr_data.has_data():
-            error_msg = "字幕数据为空，无法检测语言"
-            logger.error(f"[任务 {task_id}] {error_msg}")
-            raise ValueError(error_msg)
-        
-        # 收集字幕文本样本（取前20条或前1000个字符）
-        sample_texts = []
-        total_chars = 0
-        max_chars = 1000
-        max_segments = 20
-        
-        for seg in asr_data.segments:
-            if seg.text and seg.text.strip():
-                sample_texts.append(seg.text.strip())
-                total_chars += len(seg.text)
-                if len(sample_texts) >= max_segments or total_chars >= max_chars:
-                    break
-        
-        if not sample_texts:
-            error_msg = "字幕中没有有效的文本内容，无法检测语言"
-            logger.error(f"[任务 {task_id}] {error_msg}")
-            raise ValueError(error_msg)
-        
-        # 合并文本进行检测
-        combined_text = " ".join(sample_texts)
-        
-        try:
-            detected_lang = detect(combined_text)
-            logger.info(f"[任务 {task_id}] 检测到语言: {detected_lang}")
-            
-            if detected_lang != "ja":
-                error_msg = f"检测到视频语言为 {detected_lang}，目前仅支持日语视频。请使用日语视频进行分析。"
-                logger.error(f"[任务 {task_id}] {error_msg}")
-                raise ValueError(error_msg)
-            
-            logger.info(f"[任务 {task_id}] 语言验证通过：确认为日语")
-        except LangDetectException as e:
-            error_msg = f"无法检测视频语言: {str(e)}。请确保字幕包含有效的文本内容。"
-            logger.error(f"[任务 {task_id}] {error_msg}")
-            raise ValueError(error_msg)
 
     def _prepare_config(self, task_id: str, config) -> CoreSubtitleConfig:
         """准备配置（使用环境变量默认值并转换）"""
@@ -622,7 +573,7 @@ class SubtitleService:
 
         try:
             self.task_manager.update_task(
-                task_id, status="running", message="开始处理字幕"
+                task_id, status=TaskStatus.RUNNING, message="开始处理字幕"
             )
 
             # 1. 从数据库获取文件路径（优先从关联的转录任务获取）
@@ -634,9 +585,6 @@ class SubtitleService:
 
             # 3. 加载字幕数据
             asr_data = self._load_subtitle_data(task_id, subtitle_path)
-
-            # 3.5. 检测视频语言，如果不是日语则返回错误
-            self._validate_language(task_id, asr_data)
 
             # 4. 计算输出文件名
             output_name = self._calculate_output_name(subtitle_path)
@@ -672,7 +620,7 @@ class SubtitleService:
             logger.info(f"[任务 {task_id}] 字幕处理完成，输出文件: {json_output_path}")
             self.task_manager.update_task(
                 task_id,
-                status="completed",
+                status=TaskStatus.COMPLETED,
                 progress=100,
                 message="字幕处理完成",
                 output_path=json_output_path,
@@ -682,8 +630,13 @@ class SubtitleService:
             error_msg = str(e)
             logger.error(f"[任务 {task_id}] 字幕处理失败: {error_msg}", exc_info=True)
             self.task_manager.update_task(
-                task_id, status="failed", error=error_msg, message="字幕处理失败"
+                task_id,
+                status=TaskStatus.FAILED,
+                error=error_msg,
+                message="字幕处理失败",
             )
+            # 重新抛出异常，让 Celery 知道任务失败
+            raise
 
     def _convert_config(self, config) -> CoreSubtitleConfig:
         """转换配置格式"""

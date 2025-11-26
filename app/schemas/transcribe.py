@@ -53,10 +53,7 @@ class TranscribeConfig(BaseModel):
 
 
 class TranscribeRequest(BaseModel):
-    """转录请求
-
-    注意：file_path 已移除，现在统一从数据库获取文件路径
-    """
+    """转录请求"""
 
     output_path: Optional[str] = Field(
         None, description="输出文件路径（可选，MinIO 路径）"

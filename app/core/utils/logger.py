@@ -128,8 +128,9 @@ def setup_logger(
                     return f"<green>{time_str}</green> | <level>{level_name}</level> | {message}\n"
                 else:
                     return f"<green>{time_str}</green> | {message}\n"
-            except Exception:
-                return "{time} | {level} | {message}\n"
+            except Exception as e:
+                # 异常时返回简单的格式，使用 loguru 的标准格式语法
+                return "<green>{time:YYYY-MM-DD HH:mm:ss}</green> | <level>{level}</level> | {message}\n"
 
         # 文件输出格式（简化，只显示必要信息）
         def format_file(record):
@@ -139,8 +140,9 @@ def setup_logger(
                 message = record.get("message", "")
                 # 只显示时间、级别和消息
                 return f"{time_str} | {level_name} | {message}\n"
-            except Exception:
-                return "{time} | {level} | {message}\n"
+            except Exception as e:
+                # 异常时返回简单的格式，使用 loguru 的标准格式语法
+                return "{time:YYYY-MM-DD HH:mm:ss} | {level} | {message}\n"
 
         # 检测是否应该禁用 enqueue（避免在 VSCode debug 等环境中的 multiprocessing 问题）
         use_enqueue = not _should_disable_enqueue()

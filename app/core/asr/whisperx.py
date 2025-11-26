@@ -139,6 +139,9 @@ class WhisperXASR(BaseASR):
             language=None if self.language == "auto" else self.language,
         )
 
+        # 保存检测到的语言信息（align 后会丢失）
+        detected_language = result.get("language")
+
         if callback:
             callback(60, "对齐时间戳...")
 
@@ -150,12 +153,12 @@ class WhisperXASR(BaseASR):
             align_download_root = Path(MODEL_PATH) / "whisperx"
 
         logger.info(
-            f"[WhisperX] 加载对齐模型: language={result['language']}, "
+            f"[WhisperX] 加载对齐模型: language={detected_language}, "
             f"download_root={align_download_root}"
         )
 
         model_a, metadata = whisperx.load_align_model(
-            language_code=result["language"],
+            language_code=detected_language,
             device=self.device,
         )
 
@@ -168,6 +171,9 @@ class WhisperXASR(BaseASR):
             self.device,
             return_char_alignments=False,
         )
+
+        # 恢复语言信息（align 函数不返回 language 字段）
+        result["language"] = detected_language
 
         if callback:
             callback(100, "转录完成")
