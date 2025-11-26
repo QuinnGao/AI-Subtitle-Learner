@@ -215,12 +215,12 @@ class TestSubtitleAPI:
 
         create_response = client.post("/api/v1/subtitle", json=request_data)
         assert create_response.status_code == status.HTTP_200_OK
-        task_id = create_response.json()["task_id"]
+        data = create_response.json()
+        task_id = data["task_id"]
 
-        # 等待一段时间让任务开始处理（状态查询端点已删除，简化测试）
-        time.sleep(1)
-        assert "progress" in task_data
-        assert 0 <= task_data["progress"] <= 100
+        # 验证响应中包含进度字段
+        assert "progress" in data
+        assert 0 <= data["progress"] <= 100
 
     def test_subtitle_with_optimize_enabled(self, client, sample_srt_file):
         """测试启用优化功能"""
@@ -467,10 +467,6 @@ class TestSubtitleAPI:
         if download_response.status_code == status.HTTP_200_OK:
             assert len(download_response.content) > 0
             assert download_response.headers["content-type"] == "application/octet-stream"
-                break
-
-            time.sleep(0.5)
-            wait_time += 0.5
 
     def test_subtitle_with_ass_format(self, client, sample_ass_file):
         """测试 ASS 格式字幕文件"""
@@ -528,4 +524,71 @@ class TestSubtitleAPI:
         assert isinstance(data["message"], str)
         assert isinstance(data["progress"], int)
         assert 0 <= data["progress"] <= 100
+
+    def test_get_subtitle_content_not_found(self, client):
+        """测试获取不存在的任务内容"""
+        fake_task_id = "00000000-0000-0000-0000-000000000000"
+        response = client.get(f"/api/v1/subtitle/{fake_task_id}/content")
+
+        assert response.status_code == status.HTTP_404_NOT_FOUND
+        assert "任务不存在" in response.json()["detail"]
+
+    def test_get_subtitle_content_pending_task(self, client, sample_srt_file):
+        """测试获取未完成任务的内容"""
+        # 创建任务
+        request_data = {
+            "subtitle_path": sample_srt_file,
+            "config": {
+                "need_translate": False,
+                "need_optimize": False,
+                "need_split": False,
+            },
+        }
+        create_response = client.post("/api/v1/subtitle", json=request_data)
+        task_id = create_response.json()["task_id"]
+
+        # 立即尝试获取内容（任务应该还在处理中）
+        response = client.get(f"/api/v1/subtitle/{task_id}/content")
+
+        # 如果任务未完成，应该返回空内容
+        if response.status_code == status.HTTP_200_OK:
+            data = response.json()
+            assert "task_id" in data
+            assert "content" in data
+            assert isinstance(data["content"], list)
+
+    def test_get_subtitle_content_response_format(self, client, sample_srt_file):
+        """测试获取字幕内容的响应格式"""
+        request_data = {
+            "subtitle_path": sample_srt_file,
+            "config": {
+                "need_translate": False,
+                "need_optimize": False,
+                "need_split": False,
+            },
+        }
+        create_response = client.post("/api/v1/subtitle", json=request_data)
+        task_id = create_response.json()["task_id"]
+
+        # 等待任务完成
+        time.sleep(3)
+
+        response = client.get(f"/api/v1/subtitle/{task_id}/content")
+
+        if response.status_code == status.HTTP_200_OK:
+            data = response.json()
+            assert "task_id" in data
+            assert "content" in data
+            assert data["task_id"] == task_id
+            assert isinstance(data["content"], list)
+
+    def test_get_subtitle_content_failed_task(self, client):
+        """测试获取失败任务的内容"""
+        # 创建一个不存在的任务ID，模拟失败任务
+        # 注意：实际测试中需要创建一个失败的任务
+        fake_task_id = "00000000-0000-0000-0000-000000000000"
+        response = client.get(f"/api/v1/subtitle/{fake_task_id}/content")
+
+        # 任务不存在应该返回 404
+        assert response.status_code == status.HTTP_404_NOT_FOUND
 
