@@ -59,26 +59,26 @@ Right-click on any word in the subtitles to instantly query its definition, pron
 ### System Components
 
 ```
-┌─────────────┐     ┌─────────────┐     ┌─────────────┐
-│   FastAPI   │────▶│  RabbitMQ   │────▶│   Celery    │
-│   (API)     │     │  (Broker)   │     │  (Worker)   │
-│             │     │             │     │             │
-│  - Receive  │     │  - Task     │     │  - Download │
-│    Requests │     │    Queue    │     │    Video    │
+┌─────────────┐     ┌─────────────┐     ┌──────────────┐
+│   FastAPI   │────▶│  RabbitMQ   │────▶│   Celery     │
+│   (API)     │     │  (Broker)   │     │  (Worker)    │
+│             │     │             │     │              │
+│  - Receive  │     │  - Task     │     │  - Download  │
+│    Requests │     │    Queue    │     │    Video     │
 │  - Create   │     │  - Message  │     │  - Transcribe│
-│    Tasks    │     │    Routing  │     │  - Process  │
-└─────────────┘     └─────────────┘     └─────────────┘
+│    Tasks    │     │    Routing  │     │  - Process   │
+└─────────────┘     └─────────────┘     └──────────────┘
       │                    │                    │
       │                    │                    │
       ▼                    ▼                    ▼
-┌─────────────┐     ┌─────────────┐     ┌─────────────┐
-│ PostgreSQL  │     │    Redis    │     │    MinIO    │
-│ (Database)  │     │   (Cache)   │     │  (Storage)  │
-│             │     │             │     │             │
-│ - Task      │     │ - ASR Cache │     │ - Audio     │
-│   State     │     │ - Translation│    │   Files     │
-│ - Metadata  │     │   Cache     │     │ - Subtitles │
-└─────────────┘     └─────────────┘     └─────────────┘
+┌─────────────┐     ┌─────────────┐     ┌──────────────┐
+│ PostgreSQL  │     │    Redis    │     │    MinIO     │
+│ (Database)  │     │   (Cache)   │     │  (Storage)   │
+│             │     │             │     │              │
+│ - Task      │     │ - ASR Cache │     │ - Audio      │
+│   State     │     │ - Translation│    │   Files      │
+│ - Metadata  │     │   Cache     │     │ - Subtitles  │
+└─────────────┘     └─────────────┘     └──────────────┘
 ```
 
 ## 🚀 Quick Start
@@ -236,34 +236,41 @@ npm run dev
 
 ```
 .
-├── app/                      # FastAPI application
+├── app/                      # FastAPI application (backend)
 │   ├── main.py              # Application entry point
 │   ├── config.py            # Configuration
-│   ├── celery/              # Celery application
-│   │   ├── app.py           # Celery configuration
-│   │   ├── tasks/           # Task definitions
-│   │   └── services/        # Business logic services
-│   ├── routers/             # API routes
-│   ├── services/            # Business logic layer
-│   ├── database/            # Database models and setup
-│   └── core/                # Core business logic
-│       ├── asr/             # Speech recognition
-│       ├── translate/       # Translation
-│       ├── split/           # Subtitle splitting
-│       ├── analyze/         # Text analysis
-│       ├── llm/             # LLM integration
-│       └── storage/         # Storage abstraction
+│   ├── celery/              # Celery application & tasks
+│   ├── routers/             # API routes (health, video, subtitle, dictionary)
+│   ├── services/            # High-level service layer (task manager, dictionary)
+│   ├── database/            # DB models, session and initialization
+│   └── core/                # Core domain logic
+│       ├── asr/             # Speech recognition (WhisperX integration)
+│       ├── translate/       # Translation pipeline
+│       ├── split/           # Subtitle segmentation
+│       ├── analyze/         # Text / Japanese analysis
+│       ├── llm/             # LLM abstraction & prompts
+│       ├── storage/         # Storage abstraction (MinIO, workspace, cache)
+│       └── utils/           # Utility helpers
 ├── web/                      # Next.js frontend
-│   ├── app/                 # Next.js app directory
-│   ├── components/          # React components
-│   ├── lib/                 # Utilities
-│   └── locales/             # i18n translations
-├── docker-compose.yml       # Docker Compose configuration
-├── requirements.txt         # Python dependencies
-├── screenshots/             # Application screenshots
-│   ├── Screenshot1.png     # Main interface screenshot
-│   └── Screenshot2.png     # Dictionary feature screenshot
-└── README.md                # This file
+│   ├── app/                 # Next.js app router
+│   ├── components/          # React components (video, subtitles, dictionary, etc.)
+│   ├── lib/                 # Frontend utilities & API helpers
+│   └── locales/             # i18n translation files
+├── nginx/                    # Nginx reverse proxy config
+│   ├── nginx.conf           # Main Nginx config
+│   └── README.md            # Nginx usage & routes
+├── models/                   # Local WhisperX and related models
+├── workspace/                # Input/output workspace and caches
+├── scripts/                  # Helper scripts (model download, test runner, etc.)
+├── tests/                    # Backend API tests
+├── docker-compose.yml        # Default Docker Compose
+├── docker-compose.gpu.yml    # GPU-enabled Compose (WhisperX on GPU)
+├── docker-compose.test.yml   # Testing Compose (CI / local test env)
+├── docker-compose.override.example.yml # Example override for customization
+├── requirements.txt          # Python dependencies
+├── pyproject.toml            # Python project metadata / tooling
+├── run.sh                    # Helper script to start services
+└── README.md                 # This file
 ```
 
 ## 🔧 Configuration
@@ -471,10 +478,8 @@ celery -A app.celery result <task_id>
 
 ## 📚 Documentation
 
-- [Architecture Design](docs/ARCHITECTURE.md)
-- [Storage Architecture](docs/STORAGE.md)
-- [Logging Configuration](docs/LOGGING.md)
-- [K8S Decision](docs/K8S_DECISION.md)
+- **Nginx reverse proxy & routes**: `nginx/README.md`
+- **Backend API tests overview**: `tests/README.md`
 
 ## 🤝 Contributing
 
