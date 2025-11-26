@@ -1,67 +1,63 @@
-# Nginx 反向代理配置
+# Nginx Reverse Proxy
 
-本目录包含用于 Docker 集群的 Nginx 反向代理配置。
+This directory contains the Nginx reverse proxy configuration used by the Docker stack.
 
-## 配置说明
+## Routes
 
-### 路由规则
+- `/` – Frontend app (service `web:3000`)
+- `/api/v1` – Backend API (service `api:8000`)
+- `/api/docs` or `/docs` – API docs (`api:8000/docs`)
+- `/health` – Health check (`api:8000/health`)
+- `/minio/` – MinIO console (`minio:9001`, optional)
+- `/rabbitmq/` – RabbitMQ management UI (`rabbitmq:15672`, optional)
 
-- `/` - 前端应用 (web:3000)
-- `/api/v1` - 后端 API (api:8000)
-- `/api/docs` 或 `/docs` - API 文档 (api:8000/docs)
-- `/health` - 健康检查 (api:8000/health)
-- `/minio/` - MinIO 控制台 (minio:9001) - 可选
-- `/rabbitmq/` - RabbitMQ 管理界面 (rabbitmq:15672) - 可选
+## SSE Support
 
-### SSE 支持
+SSE (Server-Sent Events) is enabled for real-time task status updates.
 
-配置已支持 Server-Sent Events (SSE)，用于实时任务状态更新。
+## Large File Uploads
 
-### 大文件上传
+Configured to support file uploads up to **500MB**.
 
-配置支持最大 500MB 的文件上传。
+## Usage
 
-## 使用方式
-
-### 标准部署
+### Standard deployment
 
 ```bash
 docker-compose up -d
 ```
 
-访问地址：
-- 前端: http://localhost
-- API: http://localhost/api/v1
-- API 文档: http://localhost/docs
+Access:
 
-### GPU 版本部署
+- Frontend: `http://localhost`
+- API: `http://localhost/api/v1`
+- API docs: `http://localhost/docs`
+
+### GPU deployment
 
 ```bash
 docker-compose -f docker-compose.gpu.yml up -d
 ```
 
-**注意**: GPU 版本可能不包含 MinIO 和 RabbitMQ 服务。如果这些服务不存在，nginx 可能无法启动。如果遇到问题，可以：
+Note: the GPU compose file may not include MinIO / RabbitMQ. If these services are missing, Nginx may fail to start. Either comment out related `upstream` / `location` blocks in `nginx.conf`, or ensure these services are defined.
 
-1. 注释掉 nginx.conf 中相关的 upstream 和 location 配置
-2. 或者确保这些服务在 docker-compose.gpu.yml 中已定义
+## Customization
 
-## 自定义配置
-
-如果需要修改配置，编辑 `nginx/nginx.conf` 文件，然后重启 nginx 服务：
+Edit `nginx/nginx.conf` as needed, then restart Nginx:
 
 ```bash
 docker-compose restart nginx
 ```
 
-## 端口说明
+## Ports
 
-- Nginx 监听端口: 80
-- 其他服务的端口已注释掉，通过 nginx 反向代理访问
-- 如需直接访问服务，可以取消注释相应的端口映射
+- Nginx listens on port **80**
+- Other service ports are usually commented out and accessed via the reverse proxy
+- You can uncomment port mappings in Docker Compose if you need direct access
 
-## 安全建议
+## Security Recommendations
 
-1. **生产环境**: 建议为 MinIO 和 RabbitMQ 管理界面添加认证
-2. **HTTPS**: 建议配置 SSL/TLS 证书，使用 HTTPS
-3. **防火墙**: 只暴露必要的端口（80/443）
+1. **Production** – Protect MinIO and RabbitMQ management UIs with authentication.
+2. **HTTPS** – Configure SSL/TLS certificates and serve over HTTPS.
+3. **Firewall** – Expose only required ports (80/443) to the public.
 
