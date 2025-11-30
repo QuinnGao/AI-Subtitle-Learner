@@ -6,21 +6,26 @@ AI Subtitle Learner frontend built with Next.js, Tailwind CSS, shadcn/ui and i18
 
 - 🎬 Input YouTube URL to get subtitles
 - 📝 Support providing subtitle file path
-- 🔄 Polling for task status in real time
+- ✅ Real-time URL validation with visual error feedback
+- 🔔 Modern toast notifications (Sonner)
+- 🔄 Real-time task status updates via SSE (Server-Sent Events)
 - 📊 Progress bar display
 - 🌐 i18n support (Chinese / English)
 - 💾 Download processed subtitle files
+- 🎨 Beautiful, responsive UI with smooth animations
 
 ## Tech Stack
 
-- **Next.js 16** – React framework
-- **React 19** – UI library
-- **Tailwind CSS** – Styling
-- **shadcn/ui** – UI components
+- **Next.js 16** – React framework with App Router
+- **React 19** – Latest React with improved performance
+- **Tailwind CSS** – Utility-first CSS framework
+- **shadcn/ui** – High-quality UI component library
+- **Sonner** – Modern toast notification system
 - **i18next** – Internationalization
-- **TypeScript** – Type safety
+- **TypeScript 5.6+** – Type safety
+- **React Player** – Video player component
 - **ESLint** / **Prettier** – Linting & formatting
-- **pnpm** – Package manager
+- **pnpm** – Fast, disk space efficient package manager
 
 ## Installation
 
@@ -73,9 +78,13 @@ pnpm install
 ## Usage
 
 1. Enter a YouTube video URL (e.g. `https://www.youtube.com/watch?v=...`) or a subtitle file path.
-2. Click **Submit** to create a processing task.
-3. The frontend polls task status and shows progress.
-4. After completion, download the processed subtitle file.
+2. The system validates the URL in real-time:
+   - Invalid URLs show red borders and shake animation
+   - Error state persists until a valid URL is entered
+3. Click **Submit** to create a processing task.
+4. The frontend receives real-time task status updates via SSE and shows progress.
+5. After completion, download the processed subtitle file.
+6. Use the interactive dictionary by right-clicking on words in subtitles.
 
 ## Project Structure
 

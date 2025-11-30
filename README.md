@@ -7,9 +7,10 @@
 [中文](README.zh-CN.md) | [English](README.md)
 
 [![FastAPI](https://img.shields.io/badge/FastAPI-0.104+-00a98f?style=flat-square&logo=fastapi)](https://fastapi.tiangolo.com/)
-[![Next.js](https://img.shields.io/badge/Next.js-14.2-000000?style=flat-square&logo=next.js)](https://nextjs.org/)
+[![Next.js](https://img.shields.io/badge/Next.js-16.0-000000?style=flat-square&logo=next.js)](https://nextjs.org/)
+[![React](https://img.shields.io/badge/React-19.0-61dafb?style=flat-square&logo=react)](https://react.dev/)
 [![Python](https://img.shields.io/badge/Python-3.12+-3776ab?style=flat-square&logo=python)](https://www.python.org/)
-[![TypeScript](https://img.shields.io/badge/TypeScript-5.5+-3178c6?style=flat-square&logo=typescript)](https://www.typescriptlang.org/)
+[![TypeScript](https://img.shields.io/badge/TypeScript-5.6+-3178c6?style=flat-square&logo=typescript)](https://www.typescriptlang.org/)
 [![Docker](https://img.shields.io/badge/Docker-Ready-2496ed?style=flat-square&logo=docker)](https://www.docker.com/)
 
 </div>
@@ -24,7 +25,9 @@ AI Subtitle Learner is a complete language learning system that helps you learn 
 - 🎯 **Precise Timestamps**: Uses WhisperX for accurate word-level timestamps
 - 🌐 **AI-Powered Translation**: LLM-based translation with customizable prompts
 - 📚 **Interactive Dictionary**: Right-click words to query definitions powered by LLM
-- 🎨 **Modern Web UI**: Beautiful, responsive interface built with Next.js and Tailwind CSS
+- 🎨 **Modern Web UI**: Beautiful, responsive interface built with Next.js 16, React 19, and Tailwind CSS
+- ✅ **Input Validation**: Real-time URL validation with visual error feedback (red borders, shake animation)
+- 🔔 **Toast Notifications**: Modern toast notifications using Sonner
 - 🔄 **Async Task Processing**: Celery + RabbitMQ for scalable background processing
 - 💾 **Smart Caching**: Redis caching for ASR and translation results to reduce costs
 - 📦 **Object Storage**: MinIO (S3-compatible) for file storage
@@ -210,10 +213,12 @@ npm run dev
 - **LLM**: Large language models for translation and dictionary
 
 ### Frontend
-- **Next.js 14**: React framework
-- **TypeScript**: Type safety
+- **Next.js 16**: React framework with App Router
+- **React 19**: Latest React with improved performance
+- **TypeScript 5.6+**: Type safety
 - **Tailwind CSS**: Utility-first CSS framework
 - **shadcn/ui**: UI component library
+- **Sonner**: Modern toast notification system
 - **i18next**: Internationalization
 - **React Player**: Video player component
 
