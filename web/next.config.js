@@ -7,12 +7,9 @@ const nextConfig = {
   eslint: {
     ignoreDuringBuilds: true,
   },
-  swcMinify: true,
+  // swcMinify 在 Next.js 16 中已移除，默认启用
   // 完全禁用静态优化，所有页面都动态渲染
   output: 'standalone',
-  experimental: {
-    missingSuspenseWithCSRBailout: false,
-  },
   // 跳过静态生成
   generateBuildId: async () => {
     return 'build-' + Date.now()

@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useRef, useCallback } from "react";
+import React, { useState, useRef, useCallback, useEffect } from "react";
 import { AlertCircle, Play, Pause } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import {
@@ -9,8 +9,9 @@ import {
   type AnalyzeResponse,
   type SubtitleContentItem,
 } from "@/lib/api";
+import { isValidYouTubeUrl } from "@/lib/utils";
 import { useTaskStatusStream } from "@/hooks/useTaskStatusStream";
-import { useToast } from "@/components/ui/use-toast";
+import { toast } from "sonner";
 import ReactPlayer from "react-player";
 import { SubtitleList } from "@/components/subtitle-list";
 import { AnalysisHeader } from "@/components/analysis-header";
@@ -82,6 +83,8 @@ export default function VideoLearningPage() {
   const [appState, setAppState] = useState<AppState>("idle");
   const [taskId, setTaskId] = useState<string | null>(null);
   const [errorMsg, setErrorMsg] = useState("");
+  const [hasUrlError, setHasUrlError] = useState(false);
+  const [shouldShake, setShouldShake] = useState(false);
 
   // Data State
   const [subtitleData, setSubtitleData] = useState<SentenceData[]>([]);
@@ -89,8 +92,15 @@ export default function VideoLearningPage() {
   // i18n
   const { t } = useTranslation();
 
-  // Toast
-  const { toast } = useToast();
+  // 抖动动画结束后重置
+  useEffect(() => {
+    if (shouldShake) {
+      const timer = setTimeout(() => {
+        setShouldShake(false);
+      }, 300);
+      return () => clearTimeout(timer);
+    }
+  }, [shouldShake]);
 
   // 使用 useCallback 包装回调函数，避免 useEffect 重复执行
   const handleTaskComplete = useCallback(
@@ -110,9 +120,7 @@ export default function VideoLearningPage() {
               setAppState("completed");
             } else {
               const errorMessage = "Invalid subtitle data format";
-              toast({
-                variant: "destructive",
-                title: t("toast.dataFormatError"),
+              toast.error(t("toast.dataFormatError"), {
                 description: errorMessage,
               });
               setAppState("error");
@@ -120,9 +128,7 @@ export default function VideoLearningPage() {
             }
           } catch (err: any) {
             const errorMessage = err.message || "Failed to fetch subtitles";
-            toast({
-              variant: "destructive",
-              title: t("toast.fetchSubtitleFailed"),
+            toast.error(t("toast.fetchSubtitleFailed"), {
               description: errorMessage,
             });
             setAppState("error");
@@ -130,9 +136,7 @@ export default function VideoLearningPage() {
           }
         } else {
           const errorMessage = "No subtitle generated";
-          toast({
-            variant: "destructive",
-            title: t("toast.subtitleGenerationFailed"),
+          toast.error(t("toast.subtitleGenerationFailed"), {
             description: errorMessage,
           });
           setAppState("error");
@@ -141,30 +145,26 @@ export default function VideoLearningPage() {
       } else if (data.status === "failed" || data.status === "cancelled") {
         // 显示失败 toast
         const errorMessage = data.error || data.message || "Task failed";
-        toast({
-          variant: "destructive",
-          title: t("toast.taskFailed"),
+        toast.error(t("toast.taskFailed"), {
           description: errorMessage,
         });
         setAppState("error");
         setErrorMsg(errorMessage);
       }
     },
-    [toast, t]
+    [t]
   );
 
   const handleTaskError = useCallback(
     (err: Error) => {
       const errorMessage = err.message || "Connection error";
-      toast({
-        variant: "destructive",
-        title: t("toast.connectionError"),
+      toast.error(t("toast.connectionError"), {
         description: errorMessage,
       });
       setAppState("error");
       setErrorMsg(errorMessage);
     },
-    [toast, t]
+    [t]
   );
 
   // 使用 SSE 监听任务状态
@@ -192,16 +192,30 @@ export default function VideoLearningPage() {
 
   const setPlayerRef = useCallback((player: HTMLVideoElement) => {
     if (!player) return;
-    debugger;
     playerRef.current = player;
-    console.log(player);
   }, []);
 
   // 1. 处理开始分析
   const handleAnalyze = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!url) return;
+    if (!url) {
+      setHasUrlError(true);
+      setShouldShake(true);
+      return;
+    }
 
+    // 验证是否是有效的 YouTube URL
+    if (!isValidYouTubeUrl(url)) {
+      const errorMessage = "Please enter a valid YouTube URL";
+      setHasUrlError(true);
+      setShouldShake(true);
+      toast.error(t("toast.startTaskFailed"), {
+        description: errorMessage,
+      });
+      return;
+    }
+
+    setHasUrlError(false);
     setAppState("processing");
     setErrorMsg("");
 
@@ -212,9 +226,7 @@ export default function VideoLearningPage() {
       // SSE 会自动开始监听任务状态更新
     } catch (err: any) {
       const errorMessage = err.message || "Failed to start task";
-      toast({
-        variant: "destructive",
-        title: t("toast.startTaskFailed"),
+      toast.error(t("toast.startTaskFailed"), {
         description: errorMessage,
       });
       setAppState("error");
@@ -341,7 +353,13 @@ export default function VideoLearningPage() {
     <div className="min-h-screen bg-gray-50 font-sans text-gray-900 selection:bg-blue-100">
       <div className="mx-auto max-w-screen-md">
         {appState === "idle" && (
-          <InputView url={url} onUrlChange={setUrl} onSubmit={handleAnalyze} />
+          <InputView
+            url={url}
+            onUrlChange={setUrl}
+            onSubmit={handleAnalyze}
+            hasError={hasUrlError}
+            shouldShake={shouldShake}
+          />
         )}
         {appState === "processing" && (
           <ProcessingView progress={progress} statusMessage={statusMessage} />

@@ -13,18 +13,20 @@ AI Subtitle Learner frontend built with Next.js, Tailwind CSS, shadcn/ui and i18
 
 ## Tech Stack
 
-- **Next.js 14** – React framework
+- **Next.js 16** – React framework
+- **React 19** – UI library
 - **Tailwind CSS** – Styling
 - **shadcn/ui** – UI components
 - **i18next** – Internationalization
 - **TypeScript** – Type safety
 - **ESLint** / **Prettier** – Linting & formatting
+- **pnpm** – Package manager
 
 ## Installation
 
 ```bash
 cd web
-npm install
+pnpm install
 ```
 
 ## Environment & Running
@@ -43,7 +45,7 @@ npm install
 - Start dev server:
 
   ```bash
-  npm run dev
+  pnpm run dev
   ```
 
 ### Production / Docker
@@ -53,8 +55,8 @@ npm install
 - Build & start:
 
   ```bash
-  npm run build
-  npm start
+  pnpm run build
+  pnpm start
   ```
 
 - Or via Docker Compose from project root:
@@ -65,8 +67,8 @@ npm install
 
 ## Code Quality
 
-- Lint: `npm run lint` / `npm run lint:fix`
-- Format: `npm run format` / `npm run format:check`
+- Lint: `pnpm run lint` / `pnpm run lint:fix`
+- Format: `pnpm run format` / `pnpm run format:check`
 
 ## Usage
 
