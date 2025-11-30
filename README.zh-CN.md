@@ -7,9 +7,10 @@
 [中文](README.zh-CN.md) | [English](README.md)
 
 [![FastAPI](https://img.shields.io/badge/FastAPI-0.104+-00a98f?style=flat-square&logo=fastapi)](https://fastapi.tiangolo.com/)
-[![Next.js](https://img.shields.io/badge/Next.js-14.2-000000?style=flat-square&logo=next.js)](https://nextjs.org/)
+[![Next.js](https://img.shields.io/badge/Next.js-16.0-000000?style=flat-square&logo=next.js)](https://nextjs.org/)
+[![React](https://img.shields.io/badge/React-19.0-61dafb?style=flat-square&logo=react)](https://react.dev/)
 [![Python](https://img.shields.io/badge/Python-3.12+-3776ab?style=flat-square&logo=python)](https://www.python.org/)
-[![TypeScript](https://img.shields.io/badge/TypeScript-5.5+-3178c6?style=flat-square&logo=typescript)](https://www.typescriptlang.org/)
+[![TypeScript](https://img.shields.io/badge/TypeScript-5.6+-3178c6?style=flat-square&logo=typescript)](https://www.typescriptlang.org/)
 [![Docker](https://img.shields.io/badge/Docker-Ready-2496ed?style=flat-square&logo=docker)](https://www.docker.com/)
 
 </div>
@@ -24,7 +25,9 @@ AI Subtitle Learner 是一个完整的语言学习系统，帮助您通过 YouTu
 - 🎯 **精确时间戳**：使用 WhisperX 提供单词级别的精确时间戳
 - 🌐 **AI 翻译**：基于大语言模型的翻译，支持自定义提示词
 - 📚 **交互式字典**：右键点击单词查询释义，基于 LLM 驱动
-- 🎨 **现代化 Web UI**：基于 Next.js 和 Tailwind CSS 构建的响应式界面
+- 🎨 **现代化 Web UI**：基于 Next.js 16、React 19 和 Tailwind CSS 构建的响应式界面
+- ✅ **输入验证**：实时 URL 验证，带视觉错误反馈（红色边框、抖动动画）
+- 🔔 **Toast 通知**：使用 Sonner 的现代化通知系统
 - 🔄 **异步任务处理**：Celery + RabbitMQ 实现可扩展的后台处理
 - 💾 **智能缓存**：Redis 缓存 ASR 和翻译结果，降低成本
 - 📦 **对象存储**：MinIO（S3 兼容）用于文件存储
@@ -209,10 +212,12 @@ npm run dev
 - **LLM**：用于翻译和字典查询的大语言模型
 
 ### 前端
-- **Next.js 14**：React 框架
-- **TypeScript**：类型安全
+- **Next.js 16**：使用 App Router 的 React 框架
+- **React 19**：最新版本的 React，性能更优
+- **TypeScript 5.6+**：类型安全
 - **Tailwind CSS**：实用优先的 CSS 框架
 - **shadcn/ui**：UI 组件库
+- **Sonner**：现代化的 Toast 通知系统
 - **i18next**：国际化
 - **React Player**：视频播放器组件
 
