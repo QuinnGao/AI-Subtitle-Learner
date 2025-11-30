@@ -13,19 +13,21 @@
 
 ## 技术栈
 
-- **Next.js 14** - React 框架
+- **Next.js 16** - React 框架
+- **React 19** - UI 库
 - **Tailwind CSS** - 样式框架
 - **shadcn/ui** - UI 组件库
 - **i18next** - 国际化
 - **TypeScript** - 类型安全
 - **ESLint** - 代码检查
 - **Prettier** - 代码格式化
+- **pnpm** - 包管理器
 
 ## 安装
 
 ```bash
 cd web
-npm install
+pnpm install
 ```
 
 ## 环境配置
@@ -54,7 +56,7 @@ npm install
 3. **启动开发服务器**：
 
    ```bash
-   npm run dev
+   pnpm run dev
    ```
 
 **说明**：
@@ -79,10 +81,10 @@ npm install
    cp .env.production.example .env.production
 
    # 构建生产版本
-   npm run build
+   pnpm run build
 
    # 启动生产服务器
-   npm start
+   pnpm start
    ```
 
 **说明**：
@@ -119,7 +121,7 @@ cp .env.local.example .env.local
 # 编辑 .env.local，设置 NEXT_PUBLIC_API_BASE_URL=http://localhost:8000/api/v1
 
 # 2. 启动开发服务器
-npm run dev
+pnpm run dev
 ```
 
 应用将在 [http://localhost:3000](http://localhost:3000) 启动。
@@ -133,10 +135,10 @@ npm run dev
 
 ```bash
 # 构建生产版本
-npm run build
+pnpm run build
 
 # 启动生产服务器
-npm start
+pnpm start
 ```
 
 ### Docker 部署
@@ -155,15 +157,15 @@ docker-compose up -d web
 ### Linting
 
 ```bash
-npm run lint        # 检查代码问题
-npm run lint:fix    # 自动修复可修复的问题
+pnpm run lint        # 检查代码问题
+pnpm run lint:fix    # 自动修复可修复的问题
 ```
 
 ### 代码格式化
 
 ```bash
-npm run format         # 格式化所有代码文件
-npm run format:check   # 只检查格式，不修改文件
+pnpm run format         # 格式化所有代码文件
+pnpm run format:check   # 只检查格式，不修改文件
 ```
 
 ### 配置说明

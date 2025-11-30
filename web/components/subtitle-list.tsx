@@ -13,8 +13,8 @@ interface SubtitleListProps {
   onTokenDictionaryClick?: (token: WordToken) => void; // token 字典查询回调
   onPause?: () => void; // 暂停播放回调
   currentTime: number; // 当前播放时间（毫秒）
-  subtitleListRef: RefObject<HTMLDivElement>;
-  activeSubtitleRef: RefObject<HTMLDivElement>;
+  subtitleListRef: RefObject<HTMLDivElement | null>;
+  activeSubtitleRef: RefObject<HTMLDivElement | null>;
 }
 
 export const SubtitleList: React.FC<SubtitleListProps> = ({
@@ -29,7 +29,11 @@ export const SubtitleList: React.FC<SubtitleListProps> = ({
 }) => {
   // 当激活的字幕索引变化时，自动滚动到该字幕
   useEffect(() => {
-    if (activeSubtitleRef.current && subtitleListRef.current && activeIndex >= 0) {
+    if (
+      activeSubtitleRef.current &&
+      subtitleListRef.current &&
+      activeIndex >= 0
+    ) {
       const container = subtitleListRef.current;
       const activeElement = activeSubtitleRef.current;
 
@@ -38,7 +42,10 @@ export const SubtitleList: React.FC<SubtitleListProps> = ({
       const elementRect = activeElement.getBoundingClientRect();
 
       // 如果元素不在可视区域内，滚动到它
-      if (elementRect.top < containerRect.top || elementRect.bottom > containerRect.bottom) {
+      if (
+        elementRect.top < containerRect.top ||
+        elementRect.bottom > containerRect.bottom
+      ) {
         activeElement.scrollIntoView({
           behavior: "smooth",
           block: "center",
@@ -48,7 +55,11 @@ export const SubtitleList: React.FC<SubtitleListProps> = ({
   }, [activeIndex, subtitleListRef, activeSubtitleRef]);
 
   return (
-    <div ref={subtitleListRef} className="flex-1 overflow-y-auto pr-2 space-y-6  min-h-0" style={{ scrollBehavior: "smooth" }}>
+    <div
+      ref={subtitleListRef}
+      className="min-h-0 flex-1 space-y-6 overflow-y-auto  pr-2"
+      style={{ scrollBehavior: "smooth" }}
+    >
       {subtitleData.map((sentence, idx) => {
         const isActive = idx === activeIndex;
 
